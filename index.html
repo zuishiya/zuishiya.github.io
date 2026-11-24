@@ -4,7 +4,7 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 <meta name="author" content="醉食 QQ 2180586028" />
-<meta name="version" content="0.3c" />
+<meta name="version" content="0.3d" />
 <title>跑团战术地图</title>
 <style>
 :root{
@@ -172,6 +172,8 @@ input[type=range]{accent-color:#3b82f6;height:20px;background:transparent}
 .presets.maps .preset-user{flex:1 1 64px;min-width:0}
 .presets.props button{flex:0 0 calc(25% - 4px);padding:6px 4px;font-size:12px}
 .presets.props button.on{background:#2f6fe0;border-color:#5b93ff;color:#fff}
+#propBook button{flex:0 0 calc(20% - 4px);height:38px;padding:3px;display:flex;align-items:center;justify-content:center;overflow:hidden}
+#propBook button img{width:28px;height:28px;object-fit:contain;display:block}
 .presets.maps button[data-pid]{position:relative}
 .ctx{position:fixed;z-index:140;min-width:168px;padding:6px;background:#111722;border:1px solid #ffffff20;border-radius:12px;box-shadow:0 18px 50px #000c;display:flex;flex-direction:column;gap:2px}
 .ctx[hidden]{display:none}
@@ -401,7 +403,10 @@ body.player #panel .tk-row,body.player #panel .init-row{pointer-events:none}
           <button data-prop="torch">火把</button><button data-prop="tree">树</button>
           <button data-prop="statue">石像</button><button data-prop="rug">地毯</button>
         </div>
-        <div class="hint-row">点一种再点地图放置（纯装饰）；墙用工具栏「墙」拖拽画，挡移动和范围视线</div>
+        <div class="presets props" id="propBook"></div>
+        <div class="row"><button id="btnPropImport" class="grow">导入物品图片</button><button id="btnPropSave" class="mini">存入物品库</button></div>
+        <input type="file" id="propFile" accept="image/*" hidden>
+        <div class="hint-row">点一种再点地图放置（纯装饰）；导入的图片会存进本机物品库，下次还能用；墙用工具栏「墙」拖拽画，挡移动和范围视线</div>
         <div class="row"><span class="lbl">墙厚</span><input id="wallThick" type="number" min="0.05" max="20" step="0.05" value="0.3" class="grow"><span>米</span></div>
         <div class="row"><label class="check"><input type="checkbox" id="boundsOn" checked> 限制棋子在地图边界内</label></div>
         <div class="row"><button id="btnBounds" class="grow">设置地图边界</button><button id="btnBoundsClear" class="mini">重置</button></div>
@@ -487,6 +492,7 @@ body.player #panel .tk-row,body.player #panel .init-row{pointer-events:none}
       <li>先攻：「＋ 加入」把选中棋子加进列表（没选中就加空白角色），改先攻值自动排序；「下一回合」高亮下一位，轮完自动进下一回合；点行选中棋子，双击连镜头一起过去</li>
       <li>摆件（木桶/木箱/圆桌/椅子/火把/树/石像/地毯）纯装饰；墙用工具栏「墙 (W)」拖拽画，会挡住棋子移动和范围视线</li>
       <li>右键/长按摆件或墙体可选中、复制、删除；选中后按住拖动可移动</li>
+      <li>「场景」里可以「导入物品图片」做自定义摆件：导入后自动放进场景并存进本机物品库，下次打开还在；点物品库缩略图可继续放置，选中自定义摆件点「存入物品库」也会保存</li>
       <li>墙有厚度：面板「场景」里的「墙厚」可改；选中一面墙改的是这一面，没选中时改的是下一面新墙。范围遇到墙会被切断，命中与视野都按墙的实际厚度算</li>
       <li>迷雾：面板「迷雾」里启用；主持人自己不受迷雾影响（始终看全场），玩家只看到自己棋子的视野；默认每个棋子都提供视野（可在棋子编辑里取消，怪物就不会照亮四周），墙会挡住视野；「手动揭雾」拖动涂抹，揭开的区域随存档保存</li>
       <li>面板上每块标题（地图 / 棋子 / 先攻 / 范围 / 场景 / 存档）都能点一下收起，收起状态会记住</li>
@@ -510,7 +516,7 @@ body.player #panel .tk-row,body.player #panel .init-row{pointer-events:none}
       <li><kbd>V</kbd> 选择 · <kbd>T</kbd> 棋子 · <kbd>C</kbd> 圆 · <kbd>F</kbd> 扇形 · <kbd>M</kbd> 测距 · <kbd>G</kbd> 网格</li>
       <li><kbd>Delete</kbd> 删除选中 · <kbd>Esc</kbd> 取消 / 回到选择</li>
     </ul>
-    <div class="modal-foot"><span class="credit">作者：<b>醉食</b> · QQ 2180586028 · v0.3c</span><span style="flex:1"></span><button id="modalTour" class="ghost">新手教程</button><button id="modalClose">知道了</button></div>
+    <div class="modal-foot"><span class="credit">作者：<b>醉食</b> · QQ 2180586028 · v0.3d</span><span style="flex:1"></span><button id="modalTour" class="ghost">新手教程</button><button id="modalClose">知道了</button></div>
   </div>
 </div>
 
@@ -596,6 +602,7 @@ const S = {
   ui: { collapsed: {} },
   settings: { initLock: true, boundsOn: true, bounds: null },
   localAreas: [],
+  propBook: loadPropBook(),
   _editorKey: '',
   _inited: false,
   net: { role: 'solo', room: '', pid: '', tokenId: '', name: '', connected: false },
@@ -979,6 +986,30 @@ function drawArea(a, opt) {
 
 /* ---------------- 摆件 / 墙体 ---------------- */
 const PROP_NAMES = { barrel: '木桶', crate: '木箱', table: '圆桌', chair: '椅子', torch: '火把', tree: '树', statue: '石像', rug: '地毯' };
+const PROP_BOOK_KEY = 'trpg-map.propbook.v1';
+const PROP_IMGS = {};
+function loadPropBook() {
+  try { const a = JSON.parse(localStorage.getItem('trpg-map.propbook.v1') || '[]'); return Array.isArray(a) ? a.filter(x => x && x.id && x.imgSrc).slice(0, 40) : []; }
+  catch (e) { return []; }
+}
+function savePropBook() {
+  try { localStorage.setItem('trpg-map.propbook.v1', JSON.stringify((S.propBook || []).slice(0, 40))); } catch (e) {}
+}
+function propLabel(p) {
+  if (!p) return '摆件';
+  if (p.kind === 'custom') return p.name || '自定义物品';
+  return PROP_NAMES[p.kind] || '摆件';
+}
+function customImage(src) {
+  if (!src) return null;
+  if (!PROP_IMGS[src]) {
+    const im = new Image();
+    im.onload = () => { try { draw(); } catch (e) {} };
+    im.src = src;
+    PROP_IMGS[src] = im;
+  }
+  return PROP_IMGS[src].complete ? PROP_IMGS[src] : null;
+}
 const PROP_SIZES = { barrel: .8, crate: .8, table: 1.6, chair: .7, torch: .55, tree: 1.8, statue: 1.1, rug: 2.2 };
 function getProp(id) { return S.props.find(p => p.id === id); }
 function getWall(id) { return S.walls.find(w => w.id === id); }
@@ -1007,7 +1038,14 @@ function wallAt(wx, wy, padPx) {
 function addProp(wx, wy, kind, opts) {
   opts = opts || {};
   const p = (S.grid.snap && !opts.noSnap) ? snapPoint(wx, wy) : { x: wx, y: wy };
-  const pr = { id: uid(), x: p.x, y: p.y, kind: kind || S.propKind || 'barrel', size: opts.size || PROP_SIZES[kind || S.propKind] || 1 };
+  let k = kind || S.propKind || 'barrel';
+  let extra = {};
+  if (typeof k === 'string' && k.indexOf('custom:') === 0) {
+    const bk = (S.propBook || []).find(x => x.id === k.slice(7));
+    if (bk) { k = 'custom'; extra = { imgSrc: bk.imgSrc, name: bk.name, aspect: bk.aspect || 1 }; }
+    else k = 'barrel';
+  }
+  const pr = Object.assign({ id: uid(), x: p.x, y: p.y, kind: k, size: opts.size || PROP_SIZES[k] || 1 }, extra);
   S.props.push(pr);
   S.selected = { type: 'prop', id: pr.id };
   S._editorKey = '';
@@ -1026,7 +1064,9 @@ function addWall(x1, y1, x2, y2, opts) {
 }
 function duplicateProp(p) {
   if (!p) return null;
-  return addProp(p.x + cellWorld() * .8, p.y + cellWorld() * .8, p.kind, { size: p.size, noSnap: true });
+  const c = addProp(p.x + cellWorld() * .8, p.y + cellWorld() * .8, p.kind, { size: p.size, noSnap: true });
+  if (c && p.kind === 'custom') { c.imgSrc = p.imgSrc; c.name = p.name; c.aspect = p.aspect; }
+  return c;
 }
 function rrect(g, x, y, w, h, r) {
   r = Math.min(r, Math.abs(w) / 2, Math.abs(h) / 2);
@@ -1040,6 +1080,17 @@ function rrect(g, x, y, w, h, r) {
 }
 function drawPropShape(g, p) {
   const s = propWorldSize(p), h = s / 2;
+  if (p.kind === 'custom' && p.imgSrc) {
+    const im = customImage(p.imgSrc);
+    const ar = Number(p.aspect) || (im ? im.width / im.height : 1) || 1;
+    let w = s, hh = s;
+    if (ar >= 1) hh = s / ar; else w = s * ar;
+    if (im) { g.drawImage(im, -w / 2, -hh / 2, w, hh); }
+    else { g.fillStyle = '#243044'; g.fillRect(-w / 2, -hh / 2, w, hh); }
+    g.strokeStyle = 'rgba(120,190,255,.35)'; g.lineWidth = Math.max(1 / S.view.scale, s * .01);
+    g.strokeRect(-w / 2, -hh / 2, w, hh);
+    return;
+  }
   const lw = Math.max(1.1 / S.view.scale, s * .015);
   g.lineJoin = 'round';
   g.lineCap = 'round';
@@ -1940,7 +1991,62 @@ function renderFog() {
   const fb = $('#btnFogBrush');
   if (fb) fb.classList.toggle('on', S.tool === 'fog');
 }
+async function shrinkPropImage(file) {
+  const src = await readDataURL(file);
+  const im = await loadImage(src);
+  const max = 256;
+  const k = Math.min(1, max / Math.max(im.width, im.height));
+  const w = Math.max(8, Math.round(im.width * k)), h = Math.max(8, Math.round(im.height * k));
+  const cv = document.createElement('canvas'); cv.width = w; cv.height = h;
+  const g = cv.getContext('2d'); g.drawImage(im, 0, 0, w, h);
+  return { src: cv.toDataURL('image/webp', .9), aspect: w / h };
+}
+
+async function importPropImage(file) {
+  if (!file) return;
+  const { src, aspect } = await shrinkPropImage(file);
+  const it = { id: uid(), name: (file.name || '物品').replace(/\.[^.]+$/, '').slice(0, 20), imgSrc: src, aspect };
+  S.propBook = [it].concat(S.propBook || []).slice(0, 40);
+  savePropBook();
+  S.propKind = 'custom:' + it.id;
+  const c = s2w(canvas.clientWidth / 2 + cellWorld() * 1.6, canvas.clientHeight / 2 - cellWorld() * 1.2);
+  const pr = addProp(c.x, c.y, S.propKind, { size: 1.5 });
+  if (pr) { S.selected = { type: 'prop', id: pr.id }; renderPanel(); draw(); }
+  setTool('prop');
+  toast('物品「' + it.name + '」已导入并存入物品库');
+}
+
+function saveSelectedProp() {
+  const sel = S.selected;
+  const pr = sel && sel.type === 'prop' ? getProp(sel.id) : null;
+  if (!pr) { toast('先选中一个摆件'); return; }
+  if (pr.kind !== 'custom' || !pr.imgSrc) { toast('内置摆件不用存；导入图片后会进物品库'); return; }
+  if ((S.propBook || []).some(x => x.imgSrc === pr.imgSrc)) { toast('这个物品已经在物品库里了'); return; }
+  const id = 'book_' + uid();
+  const it = { id, name: pr.name || '自定义物品', imgSrc: pr.imgSrc, aspect: pr.aspect || 1 };
+  S.propBook = [it].concat(S.propBook || []).slice(0, 40);
+  savePropBook(); renderPropBook();
+  toast('已存入物品库：' + it.name);
+}
+
+function renderPropBook() {
+  const box = $('#propBook');
+  if (!box) return;
+  box.innerHTML = '';
+  for (const it of (S.propBook || [])) {
+    const b = document.createElement('button');
+    b.className = 'ghost';
+    b.title = it.name || '自定义物品';
+    b.dataset.prop = 'custom:' + it.id;
+    const im = document.createElement('img');
+    im.src = it.imgSrc; im.alt = it.name || '';
+    b.appendChild(im);
+    box.appendChild(b);
+  }
+}
+
 function renderScene() {
+  renderPropBook();
   const cnt = $('#sceneCount');
   if (cnt) cnt.textContent = S.props.length + S.walls.length;
   $$('#propKinds button').forEach(b => b.classList.toggle('on', S.tool === 'prop' && b.dataset.prop === S.propKind));
@@ -1960,7 +2066,7 @@ function renderScene() {
   if (!row) return;
   if (S.selected && S.selected.type === 'prop') {
     const p = getProp(S.selected.id);
-    row.textContent = p ? '选中：' + (PROP_NAMES[p.kind] || '摆件') + ' · 可拖动 · Delete 删除' : '';
+    row.textContent = p ? '选中：' + propLabel(p) + ' · 可拖动 · Delete 删除' : '';
   } else if (S.selected && S.selected.type === 'wall') {
     const ww = getWall(S.selected.id);
     row.textContent = '选中：墙体' + (ww ? ' · 墙厚 ' + (Number(ww.t) || .3) + ' 米' : '') + ' · 可拖动 · Delete 删除';
@@ -3030,7 +3136,7 @@ function onDown(e) {
 
   if (S.tool === 'prop') {
     const pr = addProp(w.x, w.y, S.propKind);
-    if (pr) toast('已放置' + (PROP_NAMES[pr.kind] || '摆件') + ' · Esc 退出摆放');
+    if (pr) toast('已放置' + propLabel(pr) + ' · Esc 退出摆放');
     return;
   }
 
@@ -3340,7 +3446,7 @@ function openCtxAt(cx, cy) {
   } else if (pr) {
     const head = document.createElement('div');
     head.className = 'ctx-title';
-    head.textContent = PROP_NAMES[pr.kind] || '摆件';
+    head.textContent = propLabel(pr);
     body.appendChild(head);
     body.appendChild(ctxBtn('选中', () => { setTool('select'); select({ type: 'prop', id: pr.id }); }));
     body.appendChild(ctxBtn('复制一个', () => { const c = duplicateProp(pr); if (c) toast('已复制摆件'); }));
@@ -3848,7 +3954,18 @@ function bindUI() {
     }
     draw(); autosave(); pushHistory(); renderScene();
   });
-  $$('#propKinds button').forEach(b => b.addEventListener('click', () => {
+  $('#btnPropImport')?.addEventListener('click', () => $('#propFile').click());
+  $('#propFile')?.addEventListener('change', e => { const f = e.target.files && e.target.files[0]; if (f) importPropImage(f); e.target.value = ''; });
+  $('#btnPropSave')?.addEventListener('click', saveSelectedProp);
+  $('#propBook')?.addEventListener('click', e => {
+    const b = e.target.closest('button[data-prop]');
+    if (!b) return;
+    S.propKind = b.dataset.prop;
+    setTool('prop');
+    renderScene();
+    toast('点地图放置 · Esc 退出');
+  });
+  $$('#propKinds button, #propBook button').forEach(b => b.addEventListener('click', () => {
     S.propKind = b.dataset.prop;
     setTool('prop');
     toast('点地图放置' + (PROP_NAMES[S.propKind] || '摆件') + ' · Esc 退出');
