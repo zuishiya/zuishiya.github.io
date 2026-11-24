@@ -4,7 +4,7 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 <meta name="author" content="醉食 QQ 2180586028" />
-<meta name="version" content="0.3a" />
+<meta name="version" content="0.3b" />
 <title>跑团战术地图</title>
 <style>
 :root{
@@ -202,6 +202,10 @@ input[type=range]{accent-color:#3b82f6;height:20px;background:transparent}
 body.player .tools{display:none}
 body.player #panel .sec[data-sec=scene] button,body.player #panel .sec[data-sec=map] button,body.player #panel .sec[data-sec=save] button{pointer-events:none;opacity:.45}
 body.player #panel input,body.player #panel select,body.player #panel textarea,body.player #panel button{pointer-events:none;opacity:.45}
+body.player .sec[data-sec=map],body.player .sec[data-sec=scene],body.player .sec[data-sec=areas],body.player .sec[data-sec=fog],body.player .sec[data-sec=save]{display:none}
+body.player #editor{display:none}
+body.player #btnUndo,body.player #btnRedo,body.player #zoomOut,body.player #zoomIn,body.player #zoomLabel{display:none}
+body.player #btnAddToken,body.player #btnInitAdd,body.player #btnInitPrev,body.player #btnInitNext,body.player #btnInitClear,body.player .tk-row .x,body.player .init-row .del{display:none}
 body.player #panel .tk-row,body.player #panel .init-row{pointer-events:none}
 
 .modal-card{width:min(580px,100%);max-height:88vh;overflow:auto;background:#111722;border:1px solid #ffffff1c;border-radius:18px;padding:22px 24px;box-shadow:0 30px 80px #000a}
@@ -477,7 +481,7 @@ body.player #panel .tk-row,body.player #panel .init-row{pointer-events:none}
       <li>摆件（木桶/木箱/圆桌/椅子/火把/树/石像/地毯）纯装饰；墙用工具栏「墙 (W)」拖拽画，会挡住棋子移动和范围视线</li>
       <li>右键/长按摆件或墙体可选中、复制、删除；选中后按住拖动可移动</li>
       <li>墙有厚度：面板「场景」里的「墙厚」可改；选中一面墙改的是这一面，没选中时改的是下一面新墙。范围遇到墙会被切断，命中与视野都按墙的实际厚度算</li>
-      <li>迷雾：面板「迷雾」里启用；默认每个棋子都提供视野（可在棋子编辑里取消，怪物就不会照亮四周），墙会挡住视野；「手动揭雾」拖动涂抹，揭开的区域随存档保存</li>
+      <li>迷雾：面板「迷雾」里启用；主持人自己不受迷雾影响（始终看全场），玩家只看到自己棋子的视野；默认每个棋子都提供视野（可在棋子编辑里取消，怪物就不会照亮四周），墙会挡住视野；「手动揭雾」拖动涂抹，揭开的区域随存档保存</li>
       <li>面板上每块标题（地图 / 棋子 / 先攻 / 范围 / 场景 / 存档）都能点一下收起，收起状态会记住</li>
       <li><b>右键单击</b>画布出菜单（手机上长按）：空白处可加棋子 / 导入底图 / 截图，棋子上可复制 / 加先攻 / 换头像 / 删除，范围上可删除</li>
       <li>选中范围后拖动内部即可整体移动。磁铁开启时，圆心、扇形顶点或按下处较近的线端会吸附到棋子或格心；半径、方向和线长不变。关闭磁铁或按住 Alt 可自由拖动。</li>
@@ -497,7 +501,7 @@ body.player #panel .tk-row,body.player #panel .init-row{pointer-events:none}
       <li><kbd>V</kbd> 选择 · <kbd>T</kbd> 棋子 · <kbd>C</kbd> 圆 · <kbd>F</kbd> 扇形 · <kbd>M</kbd> 测距 · <kbd>G</kbd> 网格</li>
       <li><kbd>Delete</kbd> 删除选中 · <kbd>Esc</kbd> 取消 / 回到选择</li>
     </ul>
-    <div class="modal-foot"><span class="credit">作者：<b>醉食</b> · QQ 2180586028 · v0.3a</span><span style="flex:1"></span><button id="modalTour" class="ghost">新手教程</button><button id="modalClose">知道了</button></div>
+    <div class="modal-foot"><span class="credit">作者：<b>醉食</b> · QQ 2180586028 · v0.3b</span><span style="flex:1"></span><button id="modalTour" class="ghost">新手教程</button><button id="modalClose">知道了</button></div>
   </div>
 </div>
 
@@ -1321,6 +1325,7 @@ function punchHole(g, cx, cy, r, alphaMid) {
 }
 function drawFog() {
   if (!S.fog || !S.fog.on) return;
+  if (S.net.role === 'gm') return; // 主持人始终看得见全场，迷雾只遮玩家
   const w = Math.max(1, Math.round(W)), h = Math.max(1, Math.round(H));
   if (!fogCv) fogCv = document.createElement('canvas');
   if (!fogMask) fogMask = document.createElement('canvas');
@@ -1373,7 +1378,7 @@ function drawFog() {
   g.setTransform(1, 0, 0, 1, 0, 0);
   g.clearRect(0, 0, w, h);
   g.globalCompositeOperation = 'source-over';
-  g.fillStyle = 'rgba(4,7,12,.94)';
+  g.fillStyle = 'rgba(4,7,12,.985)';
   g.fillRect(0, 0, w, h);
   g.globalCompositeOperation = 'destination-out';
   g.drawImage(fogMask, 0, 0);
@@ -4047,7 +4052,7 @@ function init() {
 }
 
 window.__TRPG = S;
-window.__TRPG_API = { tokensInArea, hitNames, undo, redo, pushHistory, gridCellForImage, renderPanel, visionPolygon, wallSegs, raySegT };
+window.__TRPG_API = { tokensInArea, hitNames, undo, redo, pushHistory, gridCellForImage, renderPanel, visionPolygon, wallSegs, raySegT, netPublish, netFullFor, netState };
 init();
 })();
 </script>
