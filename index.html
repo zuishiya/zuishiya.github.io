@@ -4,7 +4,7 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 <meta name="author" content="醉食 QQ 2180586028" />
-<meta name="version" content="0.3k" />
+<meta name="version" content="0.3l" />
 <title>跑团战术地图</title>
 <style>
 :root{
@@ -503,6 +503,7 @@ body.player #panel .tk-row,body.player #panel .init-row{pointer-events:none}
       <li>迷雾：面板「迷雾」里启用；主持人自己不受迷雾影响（始终看全场），玩家只看到自己棋子的视野；默认每个棋子都提供视野（可在棋子编辑里取消，怪物就不会照亮四周），墙会挡住视野；「手动揭雾」拖动涂抹，揭开的区域随存档保存</li>
       <li>面板上每块标题（地图 / 棋子 / 先攻 / 范围 / 场景 / 存档）都能点一下收起，收起状态会记住</li>
       <li><b>右键单击</b>画布出菜单（手机上长按）：空白处可加棋子 / 导入底图 / 截图，棋子上可复制 / 加先攻 / 换头像 / 删除，范围上可删除</li>
+      <li>测距线选中后两端各有一个手柄，可以分别拖动；磁铁开启时两个端点各自吸附棋子或格心。</li>
       <li>选中扇形后拖黄色圆点可旋转，面板「扇形朝向」也能直接输角度；「跟随棋子」绑定后，棋子移动范围自动跟着走，解绑即停。</li>
       <li>选中范围后拖动内部即可整体移动。磁铁开启时，圆心、扇形顶点或按下处较近的线端会吸附到棋子或格心；半径、方向和线长不变。关闭磁铁或按住 Alt 可自由拖动。</li>
       <li>棋子「体型」可以直接填 0.5–10 格，不再只有 1/1.5/2/3</li>
@@ -523,7 +524,7 @@ body.player #panel .tk-row,body.player #panel .init-row{pointer-events:none}
       <li><kbd>V</kbd> 选择 · <kbd>T</kbd> 棋子 · <kbd>C</kbd> 圆 · <kbd>F</kbd> 扇形 · <kbd>M</kbd> 测距 · <kbd>G</kbd> 网格</li>
       <li><kbd>Delete</kbd> 删除选中 · <kbd>Esc</kbd> 取消 / 回到选择</li>
     </ul>
-    <div class="modal-foot"><span class="credit">作者：<b>醉食</b> · QQ 2180586028 · v0.3k</span><span style="flex:1"></span><button id="modalTour" class="ghost">新手教程</button><button id="modalClose">知道了</button></div>
+    <div class="modal-foot"><span class="credit">作者：<b>醉食</b> · QQ 2180586028 · v0.3l</span><span style="flex:1"></span><button id="modalTour" class="ghost">新手教程</button><button id="modalClose">知道了</button></div>
   </div>
 </div>
 
@@ -988,8 +989,9 @@ function drawArea(a, opt) {
     ctx.beginPath(); ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y); ctx.stroke();
     ctx.setLineDash([]);
     for (const p of [p1, p2]) {
-      ctx.beginPath(); ctx.arc(p.x, p.y, 3, 0, TAU);
+      ctx.beginPath(); ctx.arc(p.x, p.y, sel ? 5 : 3, 0, TAU);
       ctx.fillStyle = hexA(col, .95); ctx.fill();
+      if (sel) { ctx.strokeStyle = 'rgba(20,24,30,.8)'; ctx.lineWidth = 1.5; ctx.stroke(); }
     }
     const dx = p2.x - p1.x, dy = p2.y - p1.y;
     const len = Math.hypot(dx, dy) || 1;
@@ -3374,6 +3376,18 @@ function onDown(e) {
         return;
       }
     }
+    if (selArea && selArea.type === 'line') {
+      for (const end of [1, 2]) {
+        const ex = end === 1 ? selArea.x1 : selArea.x2;
+        const ey = end === 1 ? selArea.y1 : selArea.y2;
+        if (Math.hypot(w.x - ex, w.y - ey) <= 12 / S.view.scale) {
+          S.drag = { kind: 'areaEnd', id: selArea.id, end, base: JSON.parse(JSON.stringify(selArea)) };
+          if (canvas.setPointerCapture) canvas.setPointerCapture(e.pointerId);
+          draw();
+          return;
+        }
+      }
+    }
     const a = areaAt(w.x, w.y);
     if (a) {
       const already = isSel('area', a.id);
@@ -3457,6 +3471,20 @@ function updateAt(w, alt) {
       }
     }
     return true;
+  }
+  if (S.drag && S.drag.kind === 'areaEnd') {
+    const a = getArea(S.drag.id);
+    if (a) {
+      let t = tokenNear(w.x, w.y, 16);
+      const other = S.drag.end === 1 ? [a.x2, a.y2] : [a.x1, a.y1];
+      if (t && Math.hypot(t.x - other[0], t.y - other[1]) < 1) t = null;
+      let nx = t ? t.x : w.x, ny = t ? t.y : w.y;
+      if (!t && S.grid.snap && !alt) { const sp = snapPoint(nx, ny); nx = sp.x; ny = sp.y; }
+      const b = boundsRect(); if (b) { nx = clamp(nx, b.x + .5, b.x + b.w - .5); ny = clamp(ny, b.y + .5, b.y + b.h - .5); }
+      if (S.drag.end === 1) { a.x1 = nx; a.y1 = ny; } else { a.x2 = nx; a.y2 = ny; }
+      draw();
+    }
+    return;
   }
   if (S.drag && S.drag.kind === 'areaRot') {
     const a = getArea(S.drag.id);
@@ -3570,7 +3598,7 @@ function onUp(e, cancelled) {
       if (t) { t.x = S.drag.ox; t.y = S.drag.oy; }
       S._blockedMove = false;
       syncTokenPos(t);
-    } else if (S.drag && (S.drag.kind === 'area' || S.drag.kind === 'wall' || S.drag.kind === 'wallEnd')) {
+    } else if (S.drag && (S.drag.kind === 'area' || S.drag.kind === 'areaEnd' || S.drag.kind === 'wall' || S.drag.kind === 'wallEnd')) {
       const item = (S.drag.kind === 'wallEnd' || S.drag.kind === 'wall') ? getWall(S.drag.id) : getArea(S.drag.id);
       if (item && S.drag.base) Object.assign(item, S.drag.base);
     } else if (S.drag && S.drag.kind === 'prop') {
@@ -3620,6 +3648,11 @@ function onUp(e, cancelled) {
     syncGridInputs();
     canvas.style.cursor = S.tool === 'grid' ? 'move' : 'default';
     draw();
+    return;
+  }
+  if (S.drag && S.drag.kind === 'areaEnd') {
+    autosave(); pushHistory(); S.drag = null; renderAreas(); draw();
+    canvas.style.cursor = 'default';
     return;
   }
   if (S.drag && S.drag.kind === 'areaRot') {
