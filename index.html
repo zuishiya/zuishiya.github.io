@@ -4,7 +4,7 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 <meta name="author" content="醉食 QQ 2180586028" />
-<meta name="version" content="0.3v" />
+<meta name="version" content="0.3w" />
 <title>跑团战术地图</title>
 <style>
 [hidden]{display:none!important}
@@ -20,6 +20,11 @@ body{
 }
 #app{display:flex;flex-direction:column;height:100%;height:100dvh}
 
+.team-summary{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.team-chip{display:inline-flex;align-items:center;gap:6px;padding:4px 8px;border-radius:8px;border:1px solid var(--line);background:#141b27;color:#cfe0ff;font-size:12px;cursor:pointer}
+.team-chip:hover{border-color:var(--accent)}
+.team-chip em{font-style:normal;color:#fff;background:#2f6fd0;border-radius:99px;padding:0 6px;font-size:11px}
+.team-chip span{color:#7d8aa0;font-size:11px}
 /* ---------- 顶栏 ---------- */
 header{
   flex:none;height:56px;display:flex;align-items:center;gap:10px;padding:0 14px;
@@ -304,6 +309,26 @@ body.player #panel .tk-row,body.player #panel .init-row{pointer-events:none}
   .tools button{width:29px;height:29px}
   .hdr-group button{padding:4px 5px}
 }
+.float-panel{position:fixed;z-index:60;right:18px;top:86px;width:300px;max-height:70vh;display:flex;flex-direction:column;background:#0d131d;border:1px solid #2a3547;border-radius:14px;box-shadow:0 18px 50px #000a;overflow:hidden}
+.float-panel[hidden]{display:none!important}
+.fp-head{display:flex;align-items:center;justify-content:space-between;padding:10px 12px;background:#131b28;cursor:move;user-select:none;border-bottom:1px solid #ffffff10}
+.fp-head b{font-size:13px;letter-spacing:.5px}
+.fp-head button{border:0;background:transparent;color:#9fb0c8;font-size:18px;cursor:pointer}
+.fp-body{padding:8px 10px;overflow:auto;flex:1;min-height:80px}
+.fp-foot{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 10px;border-top:1px solid #ffffff10;color:#71809a;font-size:11.5px}
+.fp-row{display:flex;align-items:center;gap:8px;padding:7px 6px;border-radius:8px;border:1px solid transparent}
+.fp-row:hover{background:#131c29;border-color:#22314a}
+.fp-row .dot{width:8px;height:8px;border-radius:50%;background:#4cd07d;box-shadow:0 0 6px #4cd07d88;flex:none}
+.fp-row.off .dot{background:#6b7484;box-shadow:none}
+.fp-row .who{flex:1;min-width:0}
+.fp-row .who b{display:block;font-size:12.5px;color:#e6eefc;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fp-row .who i{display:block;font-style:normal;font-size:11px;color:#7d8ca6;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fp-row .kick{border:1px solid #6b2b33;background:#2a151a;color:#ff9aa8;border-radius:7px;font-size:11px;padding:3px 7px;cursor:pointer}
+.fp-row .badge{font-size:10px;padding:1px 5px;border-radius:5px;background:#1d2a3f;color:#9fc1ff}
+.set-grid{display:flex;flex-direction:column;gap:8px}
+.set-grid .check{display:flex;align-items:center;gap:8px;font-size:13px;color:#c8d4e6}
+.set-grid .row{display:flex;align-items:center;gap:8px}
+#setModal{position:fixed;inset:0;background:#05070bd9;backdrop-filter:blur(3px);display:grid;place-items:center;z-index:120;padding:20px}
 </style>
 </head>
 <body>
@@ -336,6 +361,7 @@ body.player #panel .tk-row,body.player #panel .init-row{pointer-events:none}
       <button id="btnUndo" title="撤销 (Ctrl+Z)">↶</button>
       <button id="btnRedo" title="重做 (Ctrl+Shift+Z)">↷</button>
       <button id="btnNet" title="联机跑团">联机</button>
+      <button id="btnPlayers" hidden title="玩家列表（在线/离线、绑定、踢人）">成员</button>
       <button id="btnTour" title="新手教程">教程</button>
       <button id="zoomOut" title="缩小">−</button>
       <span id="zoomLabel">100%</span>
@@ -343,7 +369,7 @@ body.player #panel .tk-row,body.player #panel .init-row{pointer-events:none}
       <button id="btnFit" title="适配视图（导入地图或窗口变化时自动适配）">适配</button>
     </div>
     <button class="icon-btn" id="btnPanel" title="收起 / 展开面板">☰</button>
-    <button class="icon-btn" id="btnHelp" title="帮助">?</button>
+    <button class="icon-btn" id="btnSettings" title="设置">⚙</button><button class="icon-btn" id="btnHelp" title="帮助">?</button>
   </header>
 
   <main id="main">
@@ -394,13 +420,16 @@ body.player #panel .tk-row,body.player #panel .init-row{pointer-events:none}
       </section>
 
       <section class="sec" data-sec="tokens">
-        <div class="sec-head"><h3>棋子<em class="count" id="tokenCount">0</em></h3><button id="btnAddToken" class="mini">＋ 添加</button></div>
+        <div class="sec-head"><h3>棋子<em class="count" id="tokenCount">0</em></h3><button id="btnTokensFloat" class="mini" title="把棋子列表单独拉出来">⇱</button><button id="btnAddToken" class="mini">＋ 添加</button></div>
+        <div class="row" style="margin-top:4px"><span class="lbl">小队</span><input id="teamQuickName" class="grow" maxlength="20" list="teamQuickList" placeholder="输入队名，给选中棋子编组"><button id="btnTeamQuick" class="mini">编组</button></div>
+        <datalist id="teamQuickList"></datalist>
         <div id="editor"></div>
         <div class="list" id="tokenList"></div>
+        <div class="team-summary" id="teamSummary"></div>
       </section>
 
       <section class="sec" data-sec="init">
-        <div class="sec-head"><h3>先攻<em class="count" id="initCount">0</em></h3><button id="btnInitAdd" class="mini">＋ 加入</button></div>
+        <div class="sec-head"><h3>先攻<em class="count" id="initCount">0</em></h3><button id="btnInitFloat" class="mini" title="把先攻列表单独拉出来">⇱</button><button id="btnInitAdd" class="mini">＋ 加入</button></div>
         <div class="lbl" id="initNow" style="padding:2px 2px 6px">当前行动：未开始</div>
         <div class="list" id="initList"></div>
         <div class="row"><button id="btnInitPrev" class="mini" title="上一个">◀</button><button id="btnInitNext" class="grow" title="结束当前行动者的回合，轮到下一位">结束回合</button><span class="lbl" id="initRound">第 1 回合</span><button id="btnInitClear" class="mini" title="清空先攻">清空</button></div>
@@ -421,7 +450,6 @@ body.player #panel .tk-row,body.player #panel .init-row{pointer-events:none}
         <div class="row"><span class="lbl">填充</span><input type="range" id="areaFill" min="0" max="40" step="1" value="11" class="grow"><span class="lbl" id="areaFillVal">11%</span></div>
         <div class="row"><span class="lbl">判定</span><select id="aoeMode" class="grow"><option value="center">按棋子中心</option><option value="edge">边缘接触也命中</option></select></div>
         <button id="btnCircleOnToken">以选中棋子为圆心画圆</button>
-        <button id="btnAskCheck" hidden>把最近一次测量发给主持人判定</button>
         <div class="list" id="areaList"></div>
         <div class="hint-row" id="areaHits"></div>
         <div class="row" id="areaRotRow" hidden><span class="lbl">扇形朝向</span><input id="areaRot" type="number" min="-180" max="180" step="5" class="grow"><span>°</span></div>
@@ -520,7 +548,10 @@ body.player #panel .tk-row,body.player #panel .init-row{pointer-events:none}
       <li>棋子列表里点一行选中，点 <b>◎</b> 把镜头移过去，双击行也一样；<b>×</b> 删除，选中后还能「复制」同款</li>
       <li>选中棋子后可填 <b>HP 当前/上限</b> 和状态（正常/受伤/倒地/死亡/中毒）：棋子上会显示血条和状态角标；玩家改自己的 HP 会同步给主持人</li>
       <li><b>Shift+点击</b>棋子可多选：整组一起拖动，<b>Delete</b> 删除整组；再 Shift 点一次取消某个</li>
-      <li>选中棋子在「小队」填同一个队名：同队玩家<b>共享视野</b>；范围区「填充」滑杆调颜色浓度</li>
+      <li>选中棋子在「小队」填同一个队名（或面板上方「小队」输入框 + 编组）：同队玩家<b>共享视野</b>；范围区「填充」滑杆调颜色浓度</li>
+      <li>顶部 <b>⚙</b> 打开设置：网格显示、自动适配、战争迷雾、先攻锁、默认加入身份（玩家/观众）、AOE 判定、范围填充、导入导出、清空本机缓存</li>
+      <li>棋子、先攻标题右边的 <b>⇱</b> 可把列表拉成浮窗放在地图旁边；拖动标题移动，点 × 收回原位</li>
+      <li>联机时主持人点顶部「成员」打开玩家列表：看在线/离线、给玩家绑定棋子、移出房间；玩家加入时可选择「观众」，观众看全图、也能自己画出本机测量</li>
       <li>先攻区会显示「当前行动」并给棋子套金色圈；点先攻行的 ▶ 可切换行动者，「结束回合」轮到下一位；锁定开启时玩家只能动自己的且轮到时才能改 HP</li>
       <li>选择工具下直接拖动棋子；按住 <kbd>Alt</kbd> 拖动可临时不吸附网格</li>
       <li>选中棋子后在右侧上传头像，或把图片直接拖到棋子上</li>
@@ -533,7 +564,7 @@ body.player #panel .tk-row,body.player #panel .init-row{pointer-events:none}
       <li>选中棋子后可直接按方向键按「步长」移动；地图旋转后方向键仍按屏幕方向走（上就是屏幕上）</li>
       <li>选中棋子后点「以选中棋子为圆心画圆」＝ 20 米射击圈；再点圆形工具在圈内点一下就是 5 米 AOE</li>
       <li>「测距」拖拽时起点、终点落在棋子上会自动对齐棋子圆心，量棋子到棋子的距离很方便</li>
-      <li>选中一个范围，面板会列出范围内的棋子（橙色虚线圈高亮，按棋子中心判定）；刚画完也会提示命中了谁</li>
+      <li>选中一个范围，面板会列出范围内的棋子（橙色虚线圈高亮；默认按棋子中心，可在范围区或设置里改「边缘接触也算」）；刚画完也会提示命中了谁</li>
       <li><kbd>Ctrl</kbd>+<kbd>Z</kbd> 撤销 · <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Z</kbd> 重做（增删棋子、移动、画范围、先攻调整都能回退）</li>
       <li>选中棋子后可以直接改「坐标」两个数字，或用「步长」+ 九宫格方向键一格一格挪；拖动完坐标框也会同步</li>
       <li>先攻：「＋ 加入」把选中棋子加进列表（没选中就加空白角色），改先攻值自动排序；「下一回合」高亮下一位，轮完自动进下一回合；点行选中棋子，双击连镜头一起过去</li>
@@ -576,6 +607,36 @@ body.player #panel .tk-row,body.player #panel .init-row{pointer-events:none}
 <input type="file" id="sceneFile" accept=".json,application/json" hidden>
 <input type="file" id="avatarFile" accept="image/*" hidden>
 
+<div class="modal" id="setModal" hidden>
+  <div class="modal-card" style="max-width:520px">
+    <h3 style="margin:0 0 4px">设置</h3>
+    <div style="color:#7d8ca0;font-size:12px;margin-bottom:14px">这些选项会保存在本机，下次打开继续生效。</div>
+    <div class="set-grid">
+      <label class="check"><input type="checkbox" id="setSnap"> 拖动时吸附网格/棋子</label>
+      <label class="check"><input type="checkbox" id="setGridShow"> 显示网格</label>
+      <label class="check"><input type="checkbox" id="setFogOn"> 启用战争迷雾</label>
+      <label class="check"><input type="checkbox" id="setInitLock"> 按先攻锁定玩家行动</label>
+      <label class="check"><input type="checkbox" id="setAutoFit"> 视图自动适配窗口</label>
+      <div class="row"><span class="lbl">默认加入</span><select id="setJoinAs" class="grow"><option value="player">玩家</option><option value="audience">观众</option></select></div>
+      <div class="row"><span class="lbl">AOE 判定</span><select id="setAoeMode" class="grow"><option value="center">按棋子中心</option><option value="edge">边缘接触也算</option></select></div>
+      <div class="row"><span class="lbl">范围填充</span><input id="setFill" type="range" min="0" max="40" step="1" class="grow"><span class="lbl tag" id="setFillVal">11%</span></div>
+    </div>
+    <div class="row" style="margin-top:14px"><button id="setExport" class="grow">导出存档</button><button id="setImport" class="grow">导入存档</button></div>
+    <div class="row" style="margin-top:8px"><button id="setClearCache" class="grow danger">清空本机缓存</button></div>
+    <div class="hint" style="margin-top:12px">快捷键：V 选择 · T 棋子 · C 圆 · F 扇形 · M 测距 · W 墙 · G 网格 · Delete 删除 · Ctrl+Z 撤销</div>
+    <div class="modal-foot"><span class="credit">醉食版跑团战斗地图 · QQ 2180586028</span><button id="setClose">关闭</button></div>
+  </div>
+</div>
+<div class="float-panel" id="listFloat" hidden>
+  <div class="fp-head" id="listFloatHead"><b id="listFloatTitle">列表</b><button id="listFloatClose" title="收回面板">×</button></div>
+  <div class="fp-body" id="listFloatBody"></div>
+  <div class="fp-foot"><span>可拖动标题移动</span><button id="listFloatAction" class="mini">＋ 添加</button></div>
+</div>
+<div class="float-panel" id="playersPanel" hidden>
+  <div class="fp-head" id="playersPanelHead"><b>玩家列表</b><button id="playersClose" title="关闭">×</button></div>
+  <div class="fp-body" id="playersList"></div>
+  <div class="fp-foot"><span id="playersHint">在线状态每 20 秒刷新</span><button id="btnPlayersWho" class="mini">刷新</button></div>
+</div>
 <script>
 (() => {
 'use strict';
@@ -655,7 +716,7 @@ const S = {
   opts: { radius: 20, angle: 60, color: '#4da3ff' },
   init: { list: [], activeId: null, round: 1 },
   ui: { collapsed: {} },
-  settings: { initLock: true, boundsOn: true, bounds: null, aoeMode: 'center', setup: false, areaFill: 11 },
+  settings: { initLock: true, boundsOn: true, bounds: null, aoeMode: 'center', setup: false, areaFill: 11, joinAs: 'player' },
   localAreas: [],
   log: [],
   propBook: loadPropBook(),
@@ -832,7 +893,7 @@ function render() {
   // 墙与范围/画墙预览/命中提示画在迷雾之上：GM 操作时始终看得见自己在画什么
   syncFollowAreas();
   for (const a of S.areas) drawArea(a, { selected: isSel('area', a.id) });
-  for (const a of S.localAreas) drawArea(a, { draft: true });
+  for (const a of S.localAreas) drawArea(a, { draft: true, selected: isSel('local', a.id) });
   drawBounds();
   if (S.draft) {
     const d = draftArea();
@@ -1422,6 +1483,7 @@ function tokensInArea(a) {
   const ay = (a.type === 'line') ? a.y1 : a.y;
   const edge = S.settings.aoeMode === 'edge';
   return S.tokens.filter(t => {
+    if (a.casterId && t.id === a.casterId) return false;
     let inside = false;
     if (a.type === 'circle') {
       const rad = edge ? tokenWorldR(t) : 0;
@@ -1782,21 +1844,23 @@ function tokenNear(wx, wy, padPx) {
   }
   return best;
 }
-function areaAt(wx, wy) {
-  for (let i = S.areas.length - 1; i >= 0; i--) {
-    const a = S.areas[i];
-    if (a.type === 'circle') {
-      if (Math.hypot(wx - a.x, wy - a.y) <= a.r * S.grid.ppm) return a;
-    } else if (a.type === 'cone') {
-      const d = Math.hypot(wx - a.x, wy - a.y);
-      if (d > a.r * S.grid.ppm) continue;
-      let da = Math.atan2(wy - a.y, wx - a.x) - a.angle;
-      da = Math.atan2(Math.sin(da), Math.cos(da));
-      if (Math.abs(da) <= a.spread / 2) return a;
-    } else if (a.type === 'line') {
-      if (distToSeg(wx, wy, a.x1, a.y1, a.x2, a.y2) <= 12 / S.view.scale) return a;
-    }
+function hitArea(a, wx, wy) {
+  if (a.type === 'circle') return Math.hypot(wx - a.x, wy - a.y) <= a.r * S.grid.ppm;
+  if (a.type === 'cone') {
+    const d = Math.hypot(wx - a.x, wy - a.y);
+    if (d > a.r * S.grid.ppm) return false;
+    let da = Math.atan2(wy - a.y, wx - a.x) - a.angle;
+    da = Math.atan2(Math.sin(da), Math.cos(da));
+    return Math.abs(da) <= a.spread / 2;
   }
+  return distToSeg(wx, wy, a.x1, a.y1, a.x2, a.y2) <= 12 / S.view.scale;
+}
+function areaAt(wx, wy) {
+  for (let i = S.areas.length - 1; i >= 0; i--) if (hitArea(S.areas[i], wx, wy)) return S.areas[i];
+  return null;
+}
+function localAreaAt(wx, wy) {
+  for (let i = S.localAreas.length - 1; i >= 0; i--) if (hitArea(S.localAreas[i], wx, wy)) return S.localAreas[i];
   return null;
 }
 
@@ -1955,6 +2019,9 @@ function deleteSelected() {
     S.props = S.props.filter(x => x.id !== sel.id);
   } else if (sel.type === 'wall') {
     S.walls = S.walls.filter(x => x.id !== sel.id);
+  } else if (sel.type === 'local') {
+    S.localAreas = S.localAreas.filter(a => a.id !== sel.id);
+    if (S.lastLocal && S.lastLocal.id === sel.id) S.lastLocal = null;
   } else {
     S.areas = S.areas.filter(a => a.id !== sel.id);
   }
@@ -2034,8 +2101,8 @@ function circleOnSelected() {
   const t = (S.selected && S.selected.type === 'token') ? getToken(S.selected.id) : null;
   if (!t) { toast('先选中一个棋子'); return; }
   const a = (S.net.role === 'player')
-    ? (S.localAreas.push({ id: uid(), local: true, type: 'circle', x: t.x, y: t.y, r: S.opts.radius, color: S.opts.color }), S.localAreas[S.localAreas.length - 1])
-    : addArea({ type: 'circle', x: t.x, y: t.y, r: S.opts.radius, color: S.opts.color });
+    ? (S.localAreas.push({ id: uid(), local: true, casterId: S.net.tokenId || null, type: 'circle', x: t.x, y: t.y, r: S.opts.radius, color: S.opts.color }), S.selected = { type: 'local', id: S.localAreas[S.localAreas.length - 1].id }, setTool('select'), S.localAreas[S.localAreas.length - 1])
+    : addArea({ type: 'circle', x: t.x, y: t.y, r: S.opts.radius, color: S.opts.color, casterId: t.id });
   if (S.net.role === 'player') { draw(); toast('已在本机画圈（不会同步）'); return; }
   const names = hitNames(a);
   toast('以「' + (t.name || '棋子') + '」为圆心画了 ' + fmtM(S.opts.radius) +
@@ -2082,9 +2149,11 @@ function commitDraft() {
   let a = null;
   const makeArea = (o) => {
     if (S.net.role === 'player') {
-      const la = Object.assign({ id: uid(), local: true }, o);
+      const la = Object.assign({ id: uid(), local: true, casterId: S.net.tokenId || null }, o);
       S.localAreas.push(la);
       S.lastLocal = la; syncAskBtn();
+      S.selected = { type: 'local', id: la.id };
+      setTool('select');
       return la;
     }
     return addArea(o);
@@ -2104,6 +2173,7 @@ function commitDraft() {
 /* ---------------- 面板 ---------------- */
 function renderPanel() {
   renderTokens();
+  renderTeamSummary();
   renderInit();
   renderLog();
   syncAskBtn();
@@ -2115,6 +2185,35 @@ function renderPanel() {
   updateEmpty();
 }
 
+function applyTeamQuick() {
+  const inp = $('#teamQuickName'); if (!inp) return;
+  const name = (inp.value || '').trim();
+  if (!name) { toast('先输入小队名'); inp.focus(); return; }
+  const ids = (S.group && S.group.length) ? S.group.slice() : (S.selected && S.selected.type === 'token' ? [S.selected.id] : []);
+  if (!ids.length) { toast('先选中棋子，或 Shift+点击多选'); return; }
+  ids.forEach(id => { const t = getToken(id); if (t) t.team = name; });
+  renderTokens(); draw(); autosave(); pushHistory(); netPublish(); renderTeamSummary();
+  toast('已编入小队「' + name + '」');
+}
+function renderTeamSummary() {
+  const box = $('#teamSummary'); if (!box) return;
+  const teams = {};
+  S.tokens.forEach(t => { const n = (t.team || '').trim(); if (n) (teams[n] = teams[n] || []).push(t); });
+  const names = Object.keys(teams).sort();
+  const dl = $('#teamQuickList');
+  if (dl) dl.innerHTML = names.map(n => '<option value="' + esc(n) + '">').join('');
+  if (!names.length) { box.innerHTML = '<div class="hint-row">还没有小队。选中棋子后输入队名点「编组」，同队棋子会共享视野。</div>'; return; }
+  box.innerHTML = names.map(n =>
+    '<button class="team-chip" data-team="' + esc(n) + '" title="点击选中该队全部棋子">' +
+    esc(n) + ' <em>' + teams[n].length + '</em><span>共享视野</span></button>').join('');
+  box.querySelectorAll('.team-chip').forEach(b => b.addEventListener('click', () => {
+    const n = b.dataset.team;
+    S.group = S.tokens.filter(t => (t.team || '') === n).map(t => t.id);
+    if (S.group.length) select({ type: 'token', id: S.group[0] });
+    renderTokens(); draw();
+    toast('已选中小队「' + n + '」的 ' + S.group.length + ' 个棋子');
+  }));
+}
 function renderTokens() {
   const box = $('#tokenList');
   const cnt = $('#tokenCount');
@@ -2351,7 +2450,7 @@ function exportLog() {
   toast('日志已导出');
 }
 function syncAskBtn() {
-  const b = $('#btnAskCheck'); if (!b) return;
+  const b = $('#btnAskCheck'); if (!b) return; b.hidden = true; return;
   b.hidden = !(S.net.role === 'player' && S.lastLocal);
 }
 
@@ -2478,7 +2577,7 @@ function buildPlayerEditor(box, t) {
   $('#tkName').addEventListener('change', () => { netSend('profile', { name: t.name }); pushHistory(); });
   $('#tkAva').addEventListener('click', () => { avatarTarget = t.id; $('#avatarFile').click(); });
   $('#btnLocalClear').addEventListener('click', () => { S.localAreas = []; S.lastLocal = null; syncAskBtn(); draw(); toast('本机测量已清空'); });
-  $('#btnAskCheck').addEventListener('click', () => {
+  const askBtn = $('#btnAskCheck'); if (askBtn) askBtn.addEventListener('click', () => {
     if (!S.lastLocal) return toast('先画一个圆、扇形或测距，再发判定');
     netSend('check', { area: { type: S.lastLocal.type, x: S.lastLocal.x, y: S.lastLocal.y, r: S.lastLocal.r, angle: S.lastLocal.angle, spread: S.lastLocal.spread, x2: S.lastLocal.x2, y2: S.lastLocal.y2 } });
     toast('已发给主持人，等判定');
@@ -2524,6 +2623,10 @@ function buildPlayerEditor(box, t) {
 function buildEditor() {
   const box = $('#editor');
   const sel = S.selected;
+  if (sel && sel.type === 'local') {
+    box.innerHTML = '<div class="hint-row">本机测量（只有你能看到）· 按 Delete 删除</div>';
+    return;
+  }
   if (!sel || sel.type !== 'token') {
     box.innerHTML = '<div class="hint-row">选中棋子后可改名字、颜色和头像</div>';
     return;
@@ -2735,8 +2838,7 @@ function fitContent() {
 }
 
 function setTool(t) {
-  if (S.net.role === 'player' && S.net.audience) t = 'select';
-  else if (S.net.role === 'player' && !['select','measure','circle','cone'].includes(t)) t = 'select';
+  if (S.net.role === 'player' && !['select','measure','circle','cone'].includes(t)) t = 'select';
   S.tool = t;
   S.draft = null;
   $$('.tools button').forEach(b => b.classList.toggle('active', b.dataset.tool === t));
@@ -3654,6 +3756,8 @@ function onDown(e) {
         }
       }
     }
+    const la = localAreaAt(w.x, w.y);
+    if (la) { select({ type: 'local', id: la.id }); draw(); return; }
     const a = areaAt(w.x, w.y);
     if (a) {
       const already = isSel('area', a.id);
@@ -4419,15 +4523,15 @@ function netMapData() {
   const im = S.map.img;
   const key = [im.width, im.height, S.map.name || '', S.map.src ? S.map.src.length : 0].join('|');
   if (S.map._netKey === key && S.map._netSrc) return { src: S.map._netSrc, name: S.map.name || '' };
-  let max = 1400, q = .72, src = '';
-  for (let i = 0; i < 3; i++) {
-    const sc = Math.min(1, max / Math.max(im.width, im.height));
+  let q = .72, src = '';
+  // 保持原始像素尺寸，避免玩家端世界坐标与 GM 端错位
+  for (let i = 0; i < 5; i++) {
     const c = document.createElement('canvas');
-    c.width = Math.max(1, Math.round(im.width * sc)); c.height = Math.max(1, Math.round(im.height * sc));
-    c.getContext('2d').drawImage(im, 0, 0, c.width, c.height);
+    c.width = im.width; c.height = im.height;
+    c.getContext('2d').drawImage(im, 0, 0);
     src = c.toDataURL('image/jpeg', q);
-    if (src.length <= 900000) break;
-    max = Math.round(max * .78); q = Math.max(.45, q - .1);
+    if (src.length <= 1200000) break;
+    q = Math.max(.3, q - .12);
   }
   S.map._netKey = key; S.map._netSrc = src;
   return { src: src, name: S.map.name || '' };
@@ -4486,8 +4590,96 @@ function netApplyState(st, mapSrc, mapName) {
   syncRotInput(); syncGridInputs(); renderPanel(); renderFog(); updateEmpty(); draw();
 }
 
+const FloatList = { which: '', home: null, next: null, node: null };
+function toggleListFloat(which) {
+  if (FloatList.which) {
+    const same = FloatList.which === which;
+    closeListFloat();
+    if (same) return;
+  }
+  const map = { tokens: ['tokenList', '棋子列表'], init: ['initList', '先攻列表'] };
+  const conf = map[which]; if (!conf) return;
+  const node = $('#' + conf[0]); if (!node) return;
+  FloatList.which = which; FloatList.node = node; FloatList.home = node.parentNode; FloatList.next = node.nextSibling;
+  $('#listFloatTitle').textContent = conf[1];
+  $('#listFloatBody').appendChild(node);
+  const panel = $('#listFloat'); panel.hidden = false;
+  panel.style.left = '16px';
+  panel.style.top = '120px';
+  const act = $('#listFloatAction');
+  if (act) act.textContent = which === 'init' ? '＋ 加入先攻' : '＋ 添加棋子';
+  if (which === 'init') renderInit(); else renderTokens();
+}
+function closeListFloat() {
+  if (!FloatList.which) return;
+  const node = FloatList.node;
+  if (node && FloatList.home) FloatList.home.insertBefore(node, FloatList.next);
+  FloatList.which = ''; FloatList.node = null; FloatList.home = null; FloatList.next = null;
+  $('#listFloat').hidden = true;
+}
+function renderPlayersPanel() {
+  const panel = $('#playersPanel'), list = $('#playersList'); if (!panel || !list) return;
+  const gm = S.net.role === 'gm' && S.net.connected;
+  const btn = $('#btnPlayers'); if (btn) btn.hidden = !gm;
+  if (!gm) { panel.hidden = true; return; }
+  const now = Date.now();
+  const rows = [...NET.players.entries()].map(([pid, p]) => {
+    const on = now - (p.lastSeen || 0) < 45000;
+    const tk = S.tokens.find(t => t.owner === pid || t.id === p.tokenId);
+    return { pid, p, on, tk };
+  }).sort((a, b) => (a.on === b.on ? 0 : a.on ? -1 : 1));
+  const hint0 = $('#playersHint'); if (hint0) hint0.textContent = '在线 0 人';
+  if (!rows.length) { list.innerHTML = '<div class="hint-row">还没有玩家加入。把房间码发给他们。</div>'; return; }
+  list.innerHTML = rows.map(r =>
+    '<div class="fp-row' + (r.on ? '' : ' off') + '" data-pid="' + r.pid + '">' +
+      '<span class="dot"></span><div class="who"><b>' + esc(r.p.name || '玩家') +
+      (r.p.audience ? ' <span class="badge">观众</span>' : '') + '</b><i>' +
+      (r.on ? '在线' : '离线') + ' · ' + (r.tk ? ('棋子：' + esc(r.tk.name || '未命名')) : '未绑定棋子') +
+      '</i></div><button class="kick" data-kick="' + r.pid + '">踢出</button></div>').join('');
+  list.querySelectorAll('[data-kick]').forEach(b => b.addEventListener('click', () => kickPlayer(b.dataset.kick)));
+  const hint = $('#playersHint'); if (hint) hint.textContent = '在线 ' + rows.filter(r => r.on).length + ' 人 · 共 ' + rows.length + ' 人';
+}
+function kickPlayer(pid) {
+  if (S.net.role !== 'gm') return;
+  const p = NET.players.get(pid); if (!p) return;
+  netSend('kick', { to: pid });
+  NET.players.delete(pid);
+  renderPlayersPanel(); netFullFor('');
+  toast('已移出房间：' + (p.name || '玩家'));
+}
+function togglePlayersPanel() {
+  const panel = $('#playersPanel'); if (!panel) return;
+  if (panel.hidden) {
+    panel.hidden = false;
+    panel.style.left = '16px';
+    panel.style.top = '86px';
+    renderPlayersPanel();
+  } else panel.hidden = true;
+}
+function makePanelDraggable(panel, handle) {
+  if (!panel || !handle) return;
+  let sx = 0, sy = 0, ox = 0, oy = 0, on = false;
+  handle.addEventListener('pointerdown', e => {
+    if (e.target.closest('button')) return;
+    on = true; sx = e.clientX; sy = e.clientY;
+    const r = panel.getBoundingClientRect(); ox = r.left; oy = r.top;
+    handle.setPointerCapture(e.pointerId);
+  });
+  handle.addEventListener('pointermove', e => {
+    if (!on) return;
+    panel.style.left = Math.max(0, ox + e.clientX - sx) + 'px';
+    panel.style.top = Math.max(0, oy + e.clientY - sy) + 'px';
+    panel.style.right = 'auto';
+  });
+  handle.addEventListener('pointerup', () => { on = false; });
+}
 function netReceive(msg) {
   if (!msg || msg.from === S.net.pid) return;
+  const known = NET.players.get(msg.from);
+  if (known) known.lastSeen = Date.now();
+  if (msg.t === 'kick' && S.net.role === 'player' && msg.to === S.net.pid) {
+    leaveNet(true); toast('你已被主持人移出房间'); return;
+  }
   if (S.net.role === 'gm') {
     if (msg.t === 'check') {
       const a = Object.assign({ id: 'req', color: '#ffb454' }, msg.area || {});
@@ -4506,7 +4698,7 @@ function netReceive(msg) {
         const owned = S.tokens.find(x => x.owner === msg.from);
         if (owned) tokenId = owned.id;
       }
-      NET.players.set(msg.from, { name: msg.name || (audience ? '观众' : '玩家'), tokenId: tokenId, audience: audience });
+      NET.players.set(msg.from, { name: msg.name || (audience ? '观众' : '玩家'), tokenId: tokenId, audience: audience, lastSeen: Date.now() });
       renderNetPlayers();
       if (S.settings.setup) netSend('setup', { to: msg.from, on: true });
       else netFullFor(msg.from, tokenId);
@@ -4546,8 +4738,7 @@ function netReceive(msg) {
       renderPanel(); draw(); autosave();
     } else if (msg.t === 'bye') {
       const gone = NET.players.get(msg.from);
-      if (gone) { const gt = getToken(gone.tokenId); if (gt && gt.owner === msg.from) gt.owner = null; }
-      NET.players.delete(msg.from);
+      if (gone) { gone.lastSeen = 0; gone.online = false; }
       renderNetPlayers(); renderPanel(); draw(); autosave();
     }
     return;
@@ -4681,6 +4872,7 @@ function renderNetUI() {
         : (S.net.audience ? '<br>观众模式：全图视野，不能移动棋子。' : (S.net.tokenId ? '<br>你只能移动自己的棋子；视野由主持人同步。' : '<br>等待主持人在玩家列表里把你绑定到棋子。')));
   }
   renderNetPlayers();
+  renderPlayersPanel();
 }
 
 function setSetup(on, silent) {
@@ -4696,8 +4888,42 @@ function setSetup(on, silent) {
   }
   if (!silent) toast(on ? '布场模式：玩家暂停看到，布置好点顶部「完成布场」' : '布场完成，场景已同步给玩家');
 }
+function renderSettings() {
+  const map = [
+    ['setSnap', S.grid.snap], ['setGridShow', S.grid.show], ['setFogOn', S.fog.on],
+    ['setInitLock', S.settings.initLock], ['setAutoFit', S.view.auto]
+  ];
+  map.forEach(([id, v]) => { const el = $('#' + id); if (el) el.checked = !!v; });
+  const ja = $('#setJoinAs'); if (ja) ja.value = S.settings.joinAs || 'player';
+  const am = $('#setAoeMode'); if (am) am.value = S.settings.aoeMode || 'center';
+  const fl = $('#setFill'); if (fl) fl.value = S.settings.areaFill == null ? 11 : S.settings.areaFill;
+  const fv = $('#setFillVal'); if (fv) fv.textContent = (S.settings.areaFill == null ? 11 : S.settings.areaFill) + '%';
+}
+function openSettings() { renderSettings(); const m = $('#setModal'); if (m) m.hidden = false; }
+function closeSettings() { const m = $('#setModal'); if (m) m.hidden = true; }
+function bindSettings() {
+  const on = (id, fn) => { const el = $('#' + id); if (el) el.addEventListener('change', fn); };
+  on('setSnap', e => { S.grid.snap = e.target.checked; const g = $('#snap'); if (g) g.checked = S.grid.snap; autosave(); });
+  on('setGridShow', e => { S.grid.show = e.target.checked; const g = $('#gridShow'); if (g) g.checked = S.grid.show; draw(); autosave(); });
+  on('setFogOn', e => { S.fog.on = e.target.checked; const g = $('#fogOn'); if (g) g.checked = S.fog.on; renderFog(); draw(); autosave(); netPublish(); });
+  on('setInitLock', e => { S.settings.initLock = e.target.checked; const g = $('#initLock'); if (g) g.checked = S.settings.initLock; autosave(); netPublish(); });
+  on('setAutoFit', e => { S.view.auto = e.target.checked; if (S.view.auto) { if (S.map.img) fitView(); else fitContent(); } });
+  on('setJoinAs', e => { S.settings.joinAs = e.target.value; autosave(); });
+  on('setAoeMode', e => { S.settings.aoeMode = e.target.value; const g = $('#aoeMode'); if (g) g.value = S.settings.aoeMode; renderAreas(); draw(); autosave(); });
+  const fl = $('#setFill'); if (fl) fl.addEventListener('input', e => {
+    S.settings.areaFill = +e.target.value; const fv = $('#setFillVal'); if (fv) fv.textContent = S.settings.areaFill + '%';
+    const g = $('#areaFill'); if (g) g.value = S.settings.areaFill; const gv = $('#areaFillVal'); if (gv) gv.textContent = S.settings.areaFill + '%';
+    draw(); autosave();
+  });
+  const close = $('#setClose'); if (close) close.addEventListener('click', closeSettings);
+  const settingsBtn = $('#btnSettings'); if (settingsBtn) settingsBtn.addEventListener('click', openSettings);
+  const ex = $('#setExport'); if (ex) ex.addEventListener('click', () => $('#btnExport').click());
+  const im = $('#setImport'); if (im) im.addEventListener('click', () => $('#btnImportScene').click());
+  const cc = $('#setClearCache'); if (cc) cc.addEventListener('click', () => { if (confirm('清空本机缓存会删除自动存档、底图、物品库，确定？')) { localStorage.clear(); try { indexedDB.deleteDatabase('trpg-map'); } catch (e) {} setTimeout(() => location.reload(), 400); } });
+}
 function openNet() {
   renderNetUI();
+  const ja = $('#netJoinAs'); if (ja) ja.value = S.settings.joinAs || 'player';
   $('#netModal').classList.add('open');
 }
 function closeNet() { $('#netModal').classList.remove('open'); }
@@ -4750,6 +4976,7 @@ function netAutoResume() {
 }
 
 function bindUI() {
+  bindSettings();
   $$('[data-tool]').forEach(b => b.addEventListener('click', () => { setTool(b.dataset.tool); b.blur(); }));
   const boundsOn = $('#boundsOn');
   if (boundsOn) boundsOn.addEventListener('change', () => {
@@ -4844,6 +5071,19 @@ function bindUI() {
   $('#btnUndo').addEventListener('click', undo);
   $('#btnRedo').addEventListener('click', redo);
   $('#btnNet').addEventListener('click', openNet);
+  const bp = $('#btnPlayers'); if (bp) bp.addEventListener('click', togglePlayersPanel);
+  const tf = $('#btnTokensFloat'); if (tf) tf.addEventListener('click', () => toggleListFloat('tokens'));
+  const inf = $('#btnInitFloat'); if (inf) inf.addEventListener('click', () => toggleListFloat('init'));
+  const lc = $('#listFloatClose'); if (lc) lc.addEventListener('click', closeListFloat);
+  const la = $('#listFloatAction'); if (la) la.addEventListener('click', () => {
+    if (FloatList.which === 'init') $('#btnInitAdd').click();
+    else if (FloatList.which === 'tokens') $('#btnAddToken').click();
+  });
+  makePanelDraggable($('#listFloat'), $('#listFloatHead'));
+  const pc = $('#playersClose'); if (pc) pc.addEventListener('click', () => { $('#playersPanel').hidden = true; });
+  const pw = $('#btnPlayersWho'); if (pw) pw.addEventListener('click', () => { netSend('who', {}); renderPlayersPanel(); });
+  makePanelDraggable($('#playersPanel'), $('#playersPanelHead'));
+  setInterval(() => { if (S.net.role === 'gm' && S.net.connected) { netSend('who', {}); renderPlayersPanel(); } }, 20000);
   $('#netClose').addEventListener('click', closeNet);
   $('#btnNetCreate').addEventListener('click', () => startNet('gm'));
   $('#btnNetJoin').addEventListener('click', () => startNet('player', ($('#netJoinAs') || {}).value === 'audience'));
@@ -4975,6 +5215,7 @@ function bindUI() {
   });
   $('#btnCircleOnToken').addEventListener('click', circleOnSelected);
 
+  const teamBtn = $('#btnTeamQuick'); if (teamBtn) teamBtn.addEventListener('click', applyTeamQuick);
   $('#btnAddToken').addEventListener('click', () => {
     const w = s2w(W / 2, H / 2);
     const cw = cellWorld();
@@ -5298,7 +5539,7 @@ function init() {
 }
 
 window.__TRPG = S;
-window.__TRPG_API = { tokensInArea, hitNames, undo, redo, pushHistory, gridCellForImage, renderPanel, visionPolygon, wallSegs, raySegT, losBlocked, wallAt, netPublish, netFullFor, netState, bindPlayer, netMapData, netPlayers: () => Array.from(NET.players.entries()),
+window.__TRPG_API = { tokensInArea, hitNames, addLog, undo, redo, pushHistory, gridCellForImage, renderPanel, visionPolygon, wallSegs, raySegT, losBlocked, wallAt, netPublish, netFullFor, netState, bindPlayer, netMapData, netPlayers: () => Array.from(NET.players.entries()),
   netDrop: () => { NET.suppressClose = false; if (NET.ws) NET.ws.close(); },
   netSession: () => netLoadSession() };
 init();
