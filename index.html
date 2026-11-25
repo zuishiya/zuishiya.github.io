@@ -4,7 +4,7 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 <meta name="author" content="醉食 QQ 2180586028" />
-<meta name="version" content="0.3m" />
+<meta name="version" content="0.3n" />
 <title>跑团战术地图</title>
 <style>
 :root{
@@ -482,6 +482,7 @@ body.player #panel .tk-row,body.player #panel .init-row{pointer-events:none}
       <li>点工具栏「棋子」再点地图放置；双击空白处也能快速加</li>
       <li>棋子列表里点一行选中，点 <b>◎</b> 把镜头移过去，双击行也一样；<b>×</b> 删除，选中后还能「复制」同款</li>
       <li>选中棋子后可填 <b>HP 当前/上限</b> 和状态（正常/受伤/倒地/死亡/中毒）：棋子上会显示血条和状态角标；玩家改自己的 HP 会同步给主持人</li>
+      <li><b>Shift+点击</b>棋子可多选：整组一起拖动，<b>Delete</b> 删除整组；再 Shift 点一次取消某个</li>
       <li>选择工具下直接拖动棋子；按住 <kbd>Alt</kbd> 拖动可临时不吸附网格</li>
       <li>选中棋子后在右侧上传头像，或把图片直接拖到棋子上</li>
       <li>对齐地图格子：把「格子像素」调成地图一格的像素（或用 −/＋ 微调、或「按图片对齐」），点「拖动网格对齐」在地图上拖，网格线跟着走；方向键微调 1px（Shift 10px），Shift+滚轮改格距</li>
@@ -525,7 +526,7 @@ body.player #panel .tk-row,body.player #panel .init-row{pointer-events:none}
       <li><kbd>V</kbd> 选择 · <kbd>T</kbd> 棋子 · <kbd>C</kbd> 圆 · <kbd>F</kbd> 扇形 · <kbd>M</kbd> 测距 · <kbd>G</kbd> 网格</li>
       <li><kbd>Delete</kbd> 删除选中 · <kbd>Esc</kbd> 取消 / 回到选择</li>
     </ul>
-    <div class="modal-foot"><span class="credit">作者：<b>醉食</b> · QQ 2180586028 · v0.3m</span><span style="flex:1"></span><button id="modalTour" class="ghost">新手教程</button><button id="modalClose">知道了</button></div>
+    <div class="modal-foot"><span class="credit">作者：<b>醉食</b> · QQ 2180586028 · v0.3n</span><span style="flex:1"></span><button id="modalTour" class="ghost">新手教程</button><button id="modalClose">知道了</button></div>
   </div>
 </div>
 
@@ -604,6 +605,7 @@ const S = {
   wallT: .3,
   tool: 'select',
   selected: null,
+  group: [],
   drag: null,
   draft: null,
   space: false,
@@ -778,7 +780,7 @@ function render() {
 
   const sorted = S.tokens.filter(t => S.net.role !== 'player' || !t.hidden)
     .slice().sort((x, y) => (isSel('token', y.id) ? 1 : 0) - (isSel('token', x.id) ? 1 : 0));
-  for (const t of sorted) drawToken(t, isSel('token', t.id));
+  for (const t of sorted) drawToken(t, isSel('token', t.id) || (S.group || []).includes(t.id));
 
   drawFog();
   drawWalls();
@@ -1862,6 +1864,7 @@ function addArea(a) {
 }
 
 function select(sel) {
+  if (!(sel && sel.type === 'token' && (S.group || []).includes(sel.id))) S.group = [];
   S.selected = sel;
   renderSelection();
   renderAreas();
@@ -1873,9 +1876,11 @@ function deleteSelected() {
   const sel = S.selected;
   if (!sel) return;
   if (sel.type === 'token') {
-    S.tokens = S.tokens.filter(t => t.id !== sel.id);
-    S.init.list = S.init.list.filter(e => e.tokenId !== sel.id);
+    const ids = (S.group && S.group.length) ? S.group.slice() : [sel.id];
+    S.tokens = S.tokens.filter(t => !ids.includes(t.id));
+    S.init.list = S.init.list.filter(e => !ids.includes(e.tokenId));
     if (!S.init.list.some(e => e.id === S.init.activeId)) S.init.activeId = null;
+    S.group = [];
   } else if (sel.type === 'prop') {
     S.props = S.props.filter(x => x.id !== sel.id);
   } else if (sel.type === 'wall') {
@@ -2313,7 +2318,9 @@ function bindVitals(t) {
 }
 
 function buildPlayerEditor(box, t) {
+  const grp = (S.group || []).includes(t.id) ? S.group : [];
   box.innerHTML =
+    (grp.length > 1 ? '<div class="hint-row">已选 ' + grp.length + ' 个棋子：一起拖动，Delete 删除整组；Shift+点击加减</div>' : '') +
     '<div class="row"><span class="lbl">名字</span><input id="tkName" class="grow" maxlength="24" value="' + esc(t.name || '') + '"></div>' +
     '<div class="row"><button id="tkAva" class="grow">上传头像</button></div>' +
     '<div class="row"><span class="lbl">HP</span><input id="tkHp" type="number" min="0" max="9999" step="1" class="grow" value="' + (Number(t.hp) || 0) + '"><span>/</span><input id="tkHpMax" type="number" min="0" max="9999" step="1" class="grow" value="' + (Number(t.hpMax) || 0) + '"></div>' +
@@ -2379,7 +2386,9 @@ function buildEditor() {
     buildPlayerEditor(box, t);
     return;
   }
+  const grp = (S.group || []).includes(t.id) ? S.group : [];
   box.innerHTML =
+    (grp.length > 1 ? '<div class="hint-row">已选 ' + grp.length + ' 个棋子：一起拖动，Delete 删除整组；Shift+点击加减</div>' : '') +
     '<div class="row"><span class="lbl">名字</span><input id="tkName" class="grow" maxlength="24" value="' + esc(t.name || '') + '"></div>' +
     '<div class="row"><span class="lbl">颜色</span><input id="tkColor" type="color" value="' + t.color + '"><span class="lbl">体型</span>' +
     '<input id="tkSize" type="number" min="0.1" max="100" step="0.5" class="grow" value="' + (Number(t.size) || 1) + '"><span class="lbl">格</span></div>' +
@@ -3389,8 +3398,19 @@ function onDown(e) {
     if (t) {
       if (S.net.role === 'player' && t.id !== S.net.tokenId) { toast('只能移动自己的棋子'); return; }
       if (!canActWithToken(t)) { toast('还没轮到你行动'); return; }
+      if (e.shiftKey) {
+        let g = (S.group || []).slice();
+        if (g.includes(t.id)) g = g.filter(x => x !== t.id); else g.push(t.id);
+        S.group = g;
+        if (!g.length) { select(null); renderPanel(); return; }
+        select({ type: 'token', id: g.includes(t.id) ? t.id : g[0] });
+        renderPanel(); draw(); return;
+      }
+      if (!(S.group || []).includes(t.id)) S.group = [t.id];
       select({ type: 'token', id: t.id });
-      S.drag = { kind: 'token', id: t.id, offX: t.x - w.x, offY: t.y - w.y, ox: t.x, oy: t.y };
+      const base = {};
+      (S.group.length ? S.group : [t.id]).forEach(id => { const q = getToken(id); if (q) base[id] = { x: q.x, y: q.y }; });
+      S.drag = { kind: 'token', id: t.id, offX: t.x - w.x, offY: t.y - w.y, ox: t.x, oy: t.y, group: S.group.length > 1 ? base : null };
       if (canvas.setPointerCapture) canvas.setPointerCapture(e.pointerId);
       canvas.style.cursor = 'grabbing';
       draw();
@@ -3533,7 +3553,17 @@ function updateAt(w, alt) {
         S._blockedMove = true;
       } else {
         S._blockedMove = false;
+        const anchor = (S.drag.group && S.drag.group[t.id]) || { x: t.x, y: t.y };
+        const dx = nx - anchor.x, dy = ny - anchor.y;
         t.x = nx; t.y = ny;
+        if (S.drag.group) {
+          for (const [gid, p0] of Object.entries(S.drag.group)) {
+            if (gid === t.id) continue;
+            const q = getToken(gid); if (!q) continue;
+            const cb2 = clampToBounds(p0.x + dx, p0.y + dy, tokenWorldR(q));
+            if (!(S.walls.length && wallAt(cb2.x, cb2.y, 1, true))) { q.x = cb2.x; q.y = cb2.y; }
+          }
+        }
       }
     }
     return true;
