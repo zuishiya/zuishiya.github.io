@@ -4,7 +4,7 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 <meta name="author" content="醉食 QQ 2180586028" />
-<meta name="version" content="0.3f" />
+<meta name="version" content="0.3h" />
 <title>跑团战术地图</title>
 <style>
 :root{
@@ -454,7 +454,7 @@ body.player #panel .tk-row,body.player #panel .init-row{pointer-events:none}
   <div class="modal-card">
     <h2>联机跑团</h2>
     <div id="netSolo">
-      <p class="hint">主持人开房间，把 4 位房间码发给玩家；玩家加入后只能动自己的棋子，看到自己的视野。线下跑团不用联机，直接切角色也能用。</p>
+      <p class="hint">主持人开房间，把 4 位房间码发给玩家；玩家加入后只能动自己的棋子，看到自己的视野。刷新会自动回到原房间；主持人刷新后房间也能恢复（主持人页面需保持打开）。线下跑团不用联机，直接切角色也能用。</p>
       <div class="row"><button class="grow" id="btnNetCreate">开房间（我是主持人）</button></div>
       <div class="row"><input id="netCode" placeholder="房间码，如 7K2Q" maxlength="4" style="flex:1"><input id="netName" placeholder="你的名字" style="flex:1"></div>
       <div class="row"><button class="grow" id="btnNetJoin">加入房间（我是玩家）</button></div>
@@ -504,7 +504,7 @@ body.player #panel .tk-row,body.player #panel .init-row{pointer-events:none}
       <li>地图区「存为预设」把当前底图 + 网格存成按钮，以后像地牢 / 洞穴那样一点就切；长按或右键自定义预设可删</li>
       <li>存档区「截图复制」把当前画面复制到剪贴板；浏览器不允许时自动下载 PNG</li>
       <li>右上角「教程」可以随时重看 7 步新手引导；第一次打开会自动出现，跳过后不再自动弹</li>
-      <li>联机：右上「联机」→ 主持人「开房间」得到 4 位房间码；玩家打开同一网址、点「联机」输码加入。玩家只能移动自己的棋子、只看到自己棋子的视野；主持人可勾「对玩家隐藏」藏起棋子。线下跑团不用联机，一台电脑也能用。</li>
+      <li>联机：右上「联机」→ 主持人「开房间」得到 4 位房间码；玩家打开同一网址、点「联机」输码加入。玩家只能移动自己的棋子、只看到自己棋子的视野；主持人可勾「对玩家隐藏」藏起棋子，隐藏棋子连网络消息都不会发给玩家。刷新页面会自动回房，主持人刷新后房间也能恢复。线下跑团不用联机，一台电脑也能用。</li>
       <li>玩家侧：能用测距/圆/扇形量范围（只在本机显示，不会同步给别人）；能改自己的名字、上传头像（会同步给主持人）；移动可用拖动、坐标输入或九宫格。主持人可在先攻区开启「按先攻锁定玩家行动」。</li>
       <li>地图边界：主持人导入底图后会自动以图片为边界；可在「场景」区「设置地图边界」重新拖一个矩形，棋子不能走出边界（可关闭）。</li>
     </ul>
@@ -516,7 +516,7 @@ body.player #panel .tk-row,body.player #panel .init-row{pointer-events:none}
       <li><kbd>V</kbd> 选择 · <kbd>T</kbd> 棋子 · <kbd>C</kbd> 圆 · <kbd>F</kbd> 扇形 · <kbd>M</kbd> 测距 · <kbd>G</kbd> 网格</li>
       <li><kbd>Delete</kbd> 删除选中 · <kbd>Esc</kbd> 取消 / 回到选择</li>
     </ul>
-    <div class="modal-foot"><span class="credit">作者：<b>醉食</b> · QQ 2180586028 · v0.3f</span><span style="flex:1"></span><button id="modalTour" class="ghost">新手教程</button><button id="modalClose">知道了</button></div>
+    <div class="modal-foot"><span class="credit">作者：<b>醉食</b> · QQ 2180586028 · v0.3h</span><span style="flex:1"></span><button id="modalTour" class="ghost">新手教程</button><button id="modalClose">知道了</button></div>
   </div>
 </div>
 
@@ -550,7 +550,7 @@ const TOUR_STEPS = [
   { t: '6 · 迷雾、先攻',
     b: '「迷雾」里启用后，玩家只看到自己棋子的视野；<b>主持人始终看全场</b>。墙会挡视野，也可以「手动揭雾」涂开。<br>「先攻」把棋子加进列表，改先攻值自动排序；「下一回合」高亮下一位。联机时可开「按先攻锁定玩家行动」。' },
   { t: '7 · 联机与存档',
-    b: '右上「联机」：主持人「开房间」得到 4 位码；玩家打开同一网址、输码加入，只动自己的棋子，测距/圆/扇形只在本机显示。<br>「导出存档」存棋子、范围、先攻、摆件和图片；<b>底图、头像、摆件图片会存进浏览器</b>（IndexedDB），重开页面自动恢复；换设备或清缓存才需要重新导入。' }
+    b: '右上「联机」：主持人「开房间」得到 4 位码；玩家打开同一网址、输码加入，只动自己的棋子，测距/圆/扇形只在本机显示。刷新会自动回房。<br>「导出存档」存棋子、范围、先攻、摆件和图片；<b>底图、头像、摆件图片会存进浏览器</b>（IndexedDB），重开页面自动恢复；换设备或清缓存才需要重新导入。' }
 ];
 let tourIdx = 0;
 
@@ -3752,6 +3752,7 @@ const NET = {
   ref: 'rzthweutwfckugisphqb',
   key: 'sb_publishable_sYxlwGWJaXRhUulVZeKwTw_rQwFPlqL',
   ws: null, topic: '', seq: 0, hb: null, ready: false,
+  players: new Map(),
 };
 
 function netRoomCode() {
@@ -3760,6 +3761,25 @@ function netRoomCode() {
   return s;
 }
 function netPid() { return 'p' + Math.random().toString(36).slice(2, 8) + Date.now().toString(36).slice(-3); }
+
+const NET_SESSION_KEY = 'trpg-map.net.v1';
+function netSaveSession() {
+  try {
+    if (S.net.role === 'solo' || !S.net.room) { localStorage.removeItem(NET_SESSION_KEY); return; }
+    localStorage.setItem(NET_SESSION_KEY, JSON.stringify({
+      role: S.net.role, room: S.net.room, pid: S.net.pid,
+      name: S.net.name, tokenId: S.net.tokenId || '',
+    }));
+  } catch (e) {}
+}
+function netLoadSession() {
+  try {
+    const d = JSON.parse(localStorage.getItem(NET_SESSION_KEY) || 'null');
+    if (d && d.room && (d.role === 'gm' || d.role === 'player')) return d;
+  } catch (e) {}
+  return null;
+}
+function netClearSession() { try { localStorage.removeItem(NET_SESSION_KEY); } catch (e) {} }
 
 function netSend(t, extra) {
   if (!NET.ws || NET.ws.readyState !== 1 || !NET.ready) return;
@@ -3773,9 +3793,11 @@ function netSend(t, extra) {
 
 function netConnect(room, onReady) {
   netTeardown();
+  NET.manualClose = false;
   S.net.room = room;
   NET.topic = 'realtime:trpg-' + room;
   NET.ready = false; NET.gmId = '';
+  if (S.net.role === 'gm') NET.players.clear();
   const joinRef = String(++NET.seq);
   const url = 'wss://' + NET.ref + '.supabase.co/realtime/v1/websocket?apikey=' + encodeURIComponent(NET.key) + '&vsn=1.0.0';
   let ws;
@@ -3811,22 +3833,47 @@ function netConnect(room, onReady) {
     }
   };
   ws.onclose = () => {
-    if (S.net.connected) toast('联机已断开');
+    if (NET.suppressClose) return;
+    if (S.net.connected) toast('联机已断开，正在尝试重连…');
     S.net.connected = false; NET.ready = false;
     clearInterval(NET.hb);
     netApplyRole();
+    if (S.net.role !== 'solo' && !NET.manualClose) netScheduleReconnect();
   };
   ws.onerror = () => { /* close 会处理 */ };
 }
 
+function netScheduleReconnect() {
+  if (NET.reconnectT || S.net.role === 'solo') return;
+  NET.attempt = (NET.attempt || 0) + 1;
+  const delay = Math.min(15000, Math.round(1000 * Math.pow(1.8, NET.attempt - 1)));
+  NET.reconnectT = setTimeout(() => {
+    NET.reconnectT = null;
+    if (S.net.role === 'solo') return;
+    toast('正在重新连接房间 ' + S.net.room + '…');
+    netConnect(S.net.room, netReconnectReady);
+  }, delay);
+}
+
+function netReconnectReady() {
+  NET.attempt = 0;
+  toast('已重新连接');
+  if (S.net.role === 'gm') { netSend('who'); netFullFor(''); }
+  else netSend('hello', { rejoin: true });
+}
+
 function netTeardown() {
   clearInterval(NET.hb);
+  clearTimeout(NET.reconnectT); NET.reconnectT = null;
+  NET.suppressClose = true;
   if (NET.ws) { try { NET.ws.close(); } catch (e) {} }
+  NET.suppressClose = false;
   NET.ws = null; NET.ready = false; S.net.connected = false;
 }
 function netClose() {
   netTeardown();
   S.net.role = 'solo'; S.net.room = ''; S.net.tokenId = ''; S.net.pid = '';
+  NET.attempt = 0;
 }
 
 function netState() {
@@ -3839,19 +3886,33 @@ function netState() {
 }
 
 let netPublishT = null;
+function netStateFor(pid) {
+  const st = netState();
+  if (pid) st.tokens = st.tokens.filter(t => !t.hidden || t.owner === pid);
+  else st.tokens = st.tokens.filter(t => !t.hidden);
+  return st;
+}
+
 function netPublish() {
   if (S.net.role !== 'gm' || !NET.ready) return;
   clearTimeout(netPublishT);
-  netPublishT = setTimeout(() => netSend('state', { state: netState() }), 160);
+  netPublishT = setTimeout(() => {
+    if (NET.players.size === 0) { netSend('state', { state: netStateFor('') }); return; }
+    for (const pid of NET.players.keys()) netSend('state', { to: pid, state: netStateFor(pid) });
+  }, 160);
 }
 
 function netFullFor(to, you) {
-  let st = netState();
-  if (to) {
-    // 玩家只拿到自己的隐藏棋子，其他隐藏棋子不下发
-    st = Object.assign({}, st, { tokens: st.tokens.filter(t => !t.hidden || t.owner === to) });
+  if (!to) {
+    // 地图/全员刷新：给每个已知玩家发各自的过滤快照；没有玩家时发公开快照
+    if (NET.players.size) {
+      for (const [pid, info] of NET.players.entries()) netFullFor(pid, info.tokenId || '');
+      return;
+    }
+    netSend('full', { to: '', state: netStateFor(''), you: '', mapSrc: S.map.src || '', mapName: S.map.name || '' });
+    return;
   }
-  netSend('full', { to: to, state: st, you: you || '', mapSrc: S.map.src || '', mapName: S.map.name || '' });
+  netSend('full', { to: to, state: netStateFor(to), you: you || '', mapSrc: S.map.src || '', mapName: S.map.name || '' });
 }
 
 function netApplyState(st, mapSrc, mapName) {
@@ -3901,6 +3962,7 @@ function netReceive(msg) {
         t = addToken(c.x, c.y, { name: msg.name || '玩家' });
       }
       t.owner = msg.from; t.hidden = false;
+      NET.players.set(msg.from, { name: msg.name || '玩家', tokenId: t.id });
       renderPanel(); draw(); autosave();
       netFullFor(msg.from, t.id);
       toast('玩家「' + (msg.name || '玩家') + '」加入房间');
@@ -3923,6 +3985,7 @@ function netReceive(msg) {
         renderTokens(); renderInit(); draw(); autosave();
       }
     } else if (msg.t === 'bye') {
+      NET.players.delete(msg.from);
       const t = S.tokens.find(x => x.owner === msg.from);
       if (t) { t.owner = null; renderPanel(); draw(); autosave(); }
     }
@@ -3931,14 +3994,17 @@ function netReceive(msg) {
   if (S.net.role === 'player') {
     if (msg.t === 'full' && (!msg.to || msg.to === S.net.pid)) {
       NET.gmId = msg.from || '';
-      if (msg.you) S.net.tokenId = msg.you;
+      if (msg.you) { S.net.tokenId = msg.you; netSaveSession(); }
       netApplyState(msg.state, msg.mapSrc, msg.mapName);
       if (S.net.tokenId) select({ type: 'token', id: S.net.tokenId });
       netApplyRole();
       toast('已同步主持人画面');
     } else if (msg.t === 'state') {
       if (NET.gmId && msg.from !== NET.gmId) return;
+      if (msg.to && msg.to !== S.net.pid) return;
       netApplyState(msg.state);
+    } else if (msg.t === 'who') {
+      netSend('hello', { rejoin: true });
     } else if (msg.t === 'profile') {
       const t = S.tokens.find(x => x.owner === msg.from);
       if (t) {
@@ -3988,21 +4054,42 @@ function closeNet() { $('#netModal').classList.remove('open'); }
 function startNet(role) {
   if (role === 'gm') {
     S.net = { role: 'gm', room: netRoomCode(), pid: netPid(), tokenId: '', name: ($('#netName').value || '主持人'), connected: false };
-    netConnect(S.net.room, () => { netApplyRole(); closeNet(); toast('房间已开：' + S.net.room); });
+    netSaveSession();
+    netConnect(S.net.room, () => {
+      netApplyRole(); closeNet(); toast('房间已开：' + S.net.room);
+      netFullFor('');
+    });
   } else {
     const code = ($('#netCode').value || '').trim().toUpperCase();
     if (!/^[A-Z0-9]{4}$/.test(code)) { toast('房间码是 4 位字母或数字'); return; }
     S.net = { role: 'player', room: code, pid: netPid(), tokenId: '', name: ($('#netName').value || '玩家'), connected: false };
+    netSaveSession();
     netConnect(code, () => { netSend('hello', {}); netApplyRole(); closeNet(); toast('已加入房间 ' + code + '，等待主持人同步'); });
   }
   netApplyRole();
 }
 
 function leaveNet(silent) {
+  NET.manualClose = true;
   if (S.net.connected) netSend('bye', {});
   netClose();
+  netClearSession();
   netApplyRole();
+  NET.manualClose = false;
   if (!silent) toast('已离开房间');
+}
+
+function netAutoResume() {
+  if (new URLSearchParams(location.search).has('noresume')) return;
+  const d = netLoadSession();
+  if (!d) return;
+  S.net = {
+    role: d.role, room: d.room, pid: d.pid, tokenId: d.tokenId || '',
+    name: d.name || (d.role === 'gm' ? '主持人' : '玩家'), connected: false,
+  };
+  netApplyRole();
+  toast(d.role === 'gm' ? '正在恢复房间 ' + d.room + '…' : '正在回到房间 ' + d.room + '…');
+  netConnect(d.room, netReconnectReady);
 }
 
 function bindUI() {
@@ -4459,6 +4546,7 @@ function init() {
   bindKeys();
   loadAutosave();
   applyCollapsed();
+  netAutoResume();
   syncGridInputs();
   syncRadiusUI();
   renderPresetButtons();
@@ -4493,7 +4581,9 @@ function init() {
 }
 
 window.__TRPG = S;
-window.__TRPG_API = { tokensInArea, hitNames, undo, redo, pushHistory, gridCellForImage, renderPanel, visionPolygon, wallSegs, raySegT, netPublish, netFullFor, netState };
+window.__TRPG_API = { tokensInArea, hitNames, undo, redo, pushHistory, gridCellForImage, renderPanel, visionPolygon, wallSegs, raySegT, netPublish, netFullFor, netState,
+  netDrop: () => { NET.suppressClose = false; if (NET.ws) NET.ws.close(); },
+  netSession: () => netLoadSession() };
 init();
 })();
 </script>
