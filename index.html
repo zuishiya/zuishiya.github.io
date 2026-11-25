@@ -4,9 +4,10 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 <meta name="author" content="醉食 QQ 2180586028" />
-<meta name="version" content="0.3n" />
+<meta name="version" content="0.3p" />
 <title>跑团战术地图</title>
 <style>
+[hidden]{display:none!important}
 :root{
   --bg:#0a0d12; --panel:#0f131a; --card:#121722; --line:#ffffff12; --line2:#ffffff1e;
   --text:#e7ecf5; --muted:#8d99ad; --accent:#5aa9ff; --danger:#ff6b8a;
@@ -128,6 +129,7 @@ input[type=range]{accent-color:#3b82f6;height:20px;background:transparent}
 .sec.collapsed > :not(h3):not(.sec-head){display:none}
 .sec.collapsed .sec-head button{display:none}
 .init-row{display:flex;align-items:center;gap:6px;padding:4px 6px;border-radius:9px;border:1px solid transparent;min-height:32px;cursor:pointer}
+.log-row{padding:4px 6px;border-bottom:1px solid #ffffff0d;font-size:12px;line-height:1.5;color:#c8d6e8;word-break:break-word}
 .init-row:hover{background:#ffffff08}
 .init-row.active{background:#2f6fe01f;border-color:#5aa9ff55}
 .init-row .idx{flex:none;width:14px;text-align:center;font-size:10.5px;color:#5f6c80}
@@ -138,6 +140,8 @@ input[type=range]{accent-color:#3b82f6;height:20px;background:transparent}
 .init-row input.txt:hover{border-color:var(--line2)}
 .init-row .del{flex:none;width:20px;height:20px;padding:0;border:none;background:transparent;color:#5f6c80;border-radius:5px;font-size:14px;line-height:1;display:grid;place-items:center}
 .init-row .del:hover{background:#ff6b8a22;color:#ff9bb0}
+.init-row .act{flex:none;width:20px;height:20px;padding:0;border:none;background:transparent;color:#5f6c80;border-radius:5px;font-size:11px;line-height:1;display:grid;place-items:center}
+.init-row .act:hover{background:#ffd16622;color:#ffd166}
 #editor{display:flex;flex-direction:column;gap:6px}
 #editor:empty{display:none}
 
@@ -176,7 +180,7 @@ input[type=range]{accent-color:#3b82f6;height:20px;background:transparent}
 #propBook button img{width:28px;height:28px;object-fit:contain;display:block}
 .presets.maps button[data-pid]{position:relative}
 .ctx{position:fixed;z-index:140;min-width:168px;padding:6px;background:#111722;border:1px solid #ffffff20;border-radius:12px;box-shadow:0 18px 50px #000c;display:flex;flex-direction:column;gap:2px}
-.ctx[hidden]{display:none}
+.ctx[hidden]{display:none!important}
 .ctx-item{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:8px;background:transparent;border:0;color:#d6e0ee;font-size:13px;text-align:left;cursor:pointer;width:100%}
 .ctx-item:hover{background:#1b2536}
 .ctx-item.danger{color:#ff9a9a}
@@ -379,9 +383,15 @@ body.player #panel .tk-row,body.player #panel .init-row{pointer-events:none}
 
       <section class="sec" data-sec="init">
         <div class="sec-head"><h3>先攻<em class="count" id="initCount">0</em></h3><button id="btnInitAdd" class="mini">＋ 加入</button></div>
+        <div class="lbl" id="initNow" style="padding:2px 2px 6px">当前行动：未开始</div>
         <div class="list" id="initList"></div>
-        <div class="row"><button id="btnInitPrev" class="mini" title="上一个">◀</button><button id="btnInitNext" class="grow">下一回合</button><span class="lbl" id="initRound">第 1 回合</span><button id="btnInitClear" class="mini" title="清空先攻">清空</button></div>
+        <div class="row"><button id="btnInitPrev" class="mini" title="上一个">◀</button><button id="btnInitNext" class="grow" title="结束当前行动者的回合，轮到下一位">结束回合</button><span class="lbl" id="initRound">第 1 回合</span><button id="btnInitClear" class="mini" title="清空先攻">清空</button></div>
         <label class="check" id="initLockRow"><input type="checkbox" id="initLock" checked> 按先攻锁定玩家行动</label>
+      </section>
+
+      <section class="sec" data-sec="log">
+        <div class="sec-head"><h3>战斗日志<em class="count" id="logCount">0</em></h3><button id="btnLogClear" class="mini">清空</button></div>
+        <div class="list" id="logList"></div>
       </section>
 
       <section class="sec" data-sec="areas">
@@ -391,6 +401,7 @@ body.player #panel .tk-row,body.player #panel .init-row{pointer-events:none}
         <div class="hint-row" id="rangeHint"></div>
         <div class="row"><span class="lbl">颜色</span><input id="areaColor" type="color" value="#4da3ff"><span class="lbl">范围色</span></div>
         <button id="btnCircleOnToken">以选中棋子为圆心画圆</button>
+        <button id="btnAskCheck" hidden>把最近一次测量发给主持人判定</button>
         <div class="list" id="areaList"></div>
         <div class="hint-row" id="areaHits"></div>
         <div class="row" id="areaRotRow" hidden><span class="lbl">扇形朝向</span><input id="areaRot" type="number" min="-180" max="180" step="5" class="grow"><span>°</span></div>
@@ -483,6 +494,7 @@ body.player #panel .tk-row,body.player #panel .init-row{pointer-events:none}
       <li>棋子列表里点一行选中，点 <b>◎</b> 把镜头移过去，双击行也一样；<b>×</b> 删除，选中后还能「复制」同款</li>
       <li>选中棋子后可填 <b>HP 当前/上限</b> 和状态（正常/受伤/倒地/死亡/中毒）：棋子上会显示血条和状态角标；玩家改自己的 HP 会同步给主持人</li>
       <li><b>Shift+点击</b>棋子可多选：整组一起拖动，<b>Delete</b> 删除整组；再 Shift 点一次取消某个</li>
+      <li>先攻区会显示「当前行动」并给棋子套金色圈；点先攻行的 ▶ 可切换行动者，「结束回合」轮到下一位；锁定开启时玩家只能动自己的且轮到时才能改 HP</li>
       <li>选择工具下直接拖动棋子；按住 <kbd>Alt</kbd> 拖动可临时不吸附网格</li>
       <li>选中棋子后在右侧上传头像，或把图片直接拖到棋子上</li>
       <li>对齐地图格子：把「格子像素」调成地图一格的像素（或用 −/＋ 微调、或「按图片对齐」），点「拖动网格对齐」在地图上拖，网格线跟着走；方向键微调 1px（Shift 10px），Shift+滚轮改格距</li>
@@ -516,6 +528,7 @@ body.player #panel .tk-row,body.player #panel .init-row{pointer-events:none}
       <li>右上角「教程」可以随时重看 7 步新手引导；第一次打开会自动出现，跳过后不再自动弹</li>
       <li>联机：右上「联机」→ 主持人「开房间」得到 4 位房间码；玩家打开同一网址、点「联机」输码加入。玩家只能移动自己的棋子、只看到自己棋子的视野；主持人可勾「对玩家隐藏」藏起棋子，隐藏棋子连网络消息都不会发给玩家。刷新页面会自动回房，主持人刷新后房间也能恢复。线下跑团不用联机，一台电脑也能用。</li>
       <li>玩家侧：能用测距/圆/扇形量范围（只在本机显示，不会同步给别人）；能改自己的名字、上传头像（会同步给主持人）；移动可用拖动、坐标输入或九宫格。主持人可在先攻区开启「按先攻锁定玩家行动」。</li>
+      <li>玩家画完范围后可点「把最近一次测量发给主持人判定」：主持人端会按墙与棋子算命中、记进战斗日志并把结果回给玩家。日志在「战斗日志」折叠区，会随存档保留。</li>
       <li>地图边界：主持人导入底图后会自动以图片为边界；可在「场景」区「设置地图边界」重新拖一个矩形，棋子不能走出边界（可关闭）。</li>
     </ul>
     <h4>键鼠</h4>
@@ -526,7 +539,7 @@ body.player #panel .tk-row,body.player #panel .init-row{pointer-events:none}
       <li><kbd>V</kbd> 选择 · <kbd>T</kbd> 棋子 · <kbd>C</kbd> 圆 · <kbd>F</kbd> 扇形 · <kbd>M</kbd> 测距 · <kbd>G</kbd> 网格</li>
       <li><kbd>Delete</kbd> 删除选中 · <kbd>Esc</kbd> 取消 / 回到选择</li>
     </ul>
-    <div class="modal-foot"><span class="credit">作者：<b>醉食</b> · QQ 2180586028 · v0.3n</span><span style="flex:1"></span><button id="modalTour" class="ghost">新手教程</button><button id="modalClose">知道了</button></div>
+    <div class="modal-foot"><span class="credit">作者：<b>醉食</b> · QQ 2180586028 · v0.3p</span><span style="flex:1"></span><button id="modalTour" class="ghost">新手教程</button><button id="modalClose">知道了</button></div>
   </div>
 </div>
 
@@ -615,6 +628,7 @@ const S = {
   ui: { collapsed: {} },
   settings: { initLock: true, boundsOn: true, bounds: null },
   localAreas: [],
+  log: [],
   propBook: loadPropBook(),
   _editorKey: '',
   _inited: false,
@@ -811,9 +825,24 @@ function render() {
     }
   }
 
+  drawActiveTurn();
   drawDraftSnaps();
   drawTokenDrag();
   updateHud();
+}
+
+function drawActiveTurn() {
+  const act = S.init.list.find(e => e.id === S.init.activeId);
+  const t = act && act.tokenId ? getToken(act.tokenId) : null;
+  if (!t) return;
+  const p = w2s(t.x, t.y);
+  const r = Math.max(8, tokenWorldR(t) * S.view.scale) + 8;
+  ctx.save();
+  ctx.setLineDash([6, 4]);
+  ctx.lineWidth = 2.5;
+  ctx.strokeStyle = 'rgba(255,209,102,.95)';
+  ctx.beginPath(); ctx.arc(p.x, p.y, r, 0, TAU); ctx.stroke();
+  ctx.restore();
 }
 
 function drawMap() {
@@ -1907,6 +1936,7 @@ function cloneSnap() {
     fog: Object.assign({}, S.fog, { revealed: (S.fog.revealed || []).map(p => Object.assign({}, p)) }),
     init: { list: S.init.list.map(e => Object.assign({}, e)), activeId: S.init.activeId, round: S.init.round },
     selected: S.selected ? Object.assign({}, S.selected) : null,
+    log: (S.log || []).map(e => Object.assign({}, e)),
   };
 }
 function syncHistBtns() {
@@ -2013,6 +2043,7 @@ function commitDraft() {
     if (S.net.role === 'player') {
       const la = Object.assign({ id: uid(), local: true }, o);
       S.localAreas.push(la);
+      S.lastLocal = la; syncAskBtn();
       return la;
     }
     return addArea(o);
@@ -2033,6 +2064,8 @@ function commitDraft() {
 function renderPanel() {
   renderTokens();
   renderInit();
+  renderLog();
+  syncAskBtn();
   renderAreas();
   renderScene();
   renderFog();
@@ -2233,6 +2266,30 @@ function sortedInit() {
     (Number(b.value) || 0) - (Number(a.value) || 0) || (a.order || 0) - (b.order || 0));
 }
 
+function addLog(text) {
+  S.log.unshift({ t: Date.now(), text: String(text || '') });
+  if (S.log.length > 200) S.log.length = 200;
+  renderLog();
+  autosave();
+}
+function renderLog() {
+  const box = $('#logList'); if (!box) return;
+  box.innerHTML = '';
+  (S.log || []).forEach(e => {
+    const row = document.createElement('div');
+    row.className = 'log-row';
+    const d = new Date(e.t || Date.now());
+    const hh = String(d.getHours()).padStart(2, '0'), mm = String(d.getMinutes()).padStart(2, '0');
+    row.innerHTML = '<span class="lbl">' + hh + ':' + mm + '</span> ' + esc(e.text);
+    box.appendChild(row);
+  });
+  const c = $('#logCount'); if (c) c.textContent = String((S.log || []).length);
+}
+function syncAskBtn() {
+  const b = $('#btnAskCheck'); if (!b) return;
+  b.hidden = !(S.net.role === 'player' && S.lastLocal);
+}
+
 function renderInit() {
   const box = $('#initList');
   if (!box) return;
@@ -2241,6 +2298,9 @@ function renderInit() {
   const rl = $('#initRound');
   if (rl) rl.textContent = '第 ' + S.init.round + ' 回合';
   const list = sortedInit();
+  const act = S.init.list.find(e => e.id === S.init.activeId);
+  const now = $('#initNow');
+  if (now) now.textContent = act ? ('当前行动：' + (act.name || '角色')) : '当前行动：未开始';
   if (!list.length) {
     box.innerHTML = '<div class="empty-row">空 · 选中棋子点「＋ 加入」，也可以加空白角色</div>';
     return;
@@ -2250,6 +2310,7 @@ function renderInit() {
     '<span class="idx">' + (i + 1) + '</span>' +
     '<input class="init-val" type="number" step="1" title="先攻值" value="' + esc(String(e.value == null ? '' : e.value)) + '">' +
     '<input class="txt" maxlength="24" title="名字" value="' + esc(e.name || '') + '">' +
+    (S.net.role === 'player' ? '' : '<button class="act" data-act="act" title="设为当前行动">▶</button>') +
     '<button class="del" title="移出先攻">×</button>' +
     '</div>').join('');
 }
@@ -2304,6 +2365,11 @@ function bindVitals(t) {
   const hp = $('#tkHp'), hpm = $('#tkHpMax'), st = $('#tkStatus');
   if (!hp || !hpm || !st) return;
   function apply() {
+    if (S.net.role === 'player' && S.settings.initLock && !canActWithToken(t)) {
+      toast('还没轮到你行动');
+      hp.value = t.hp || 0; hpm.value = t.hpMax || 0; st.value = t.status || 'ok';
+      return;
+    }
     let m = Number(hpm.value), h = Number(hp.value);
     if (!isFinite(m)) m = 0; if (!isFinite(h)) h = 0;
     m = clamp(Math.round(m), 0, 9999); h = clamp(Math.round(h), 0, m);
@@ -2338,7 +2404,13 @@ function buildPlayerEditor(box, t) {
   $('#tkName').addEventListener('input', e => { t.name = e.target.value; renderTokens(); draw(); autosave(); });
   $('#tkName').addEventListener('change', () => { netSend('profile', { name: t.name }); pushHistory(); });
   $('#tkAva').addEventListener('click', () => { avatarTarget = t.id; $('#avatarFile').click(); });
-  $('#btnLocalClear').addEventListener('click', () => { S.localAreas = []; draw(); toast('本机测量已清空'); });
+  $('#btnLocalClear').addEventListener('click', () => { S.localAreas = []; S.lastLocal = null; syncAskBtn(); draw(); toast('本机测量已清空'); });
+  $('#btnAskCheck').addEventListener('click', () => {
+    if (!S.lastLocal) return toast('先画一个圆、扇形或测距，再发判定');
+    netSend('check', { area: { type: S.lastLocal.type, x: S.lastLocal.x, y: S.lastLocal.y, r: S.lastLocal.r, angle: S.lastLocal.angle, spread: S.lastLocal.spread, x2: S.lastLocal.x2, y2: S.lastLocal.y2 } });
+    toast('已发给主持人，等判定');
+  });
+  $('#btnLogClear').addEventListener('click', () => { S.log = []; renderLog(); autosave(); });
   bindVitals(t);
 
   function applyCoords() {
@@ -3110,7 +3182,7 @@ function sceneSnapshot() {
   return {
     grid: S.grid, tokens: S.tokens, areas: S.areas, props: S.props, walls: S.walls,
     fog: S.fog, init: S.init, ui: { collapsed: S.ui.collapsed }, wallT: S.wallT,
-    settings: S.settings,
+    settings: S.settings, log: S.log,
     rot: Math.round(((S.view.rot || 0) * 180 / Math.PI) * 100) / 100,
   };
 }
@@ -3153,6 +3225,7 @@ function loadAutosave() {
         round: Math.max(1, parseInt(d.init.round, 10) || 1),
       };
     }
+    if (d && Array.isArray(d.log)) S.log = d.log.slice(0, 200);
     if (d && d.ui && d.ui.collapsed && typeof d.ui.collapsed === 'object') S.ui.collapsed = d.ui.collapsed;
     if (d && d.settings && typeof d.settings === 'object') S.settings = Object.assign({}, S.settings, d.settings);
     if (d && typeof d.rot === 'number' && isFinite(d.rot)) S.view.rot = d.rot * Math.PI / 180;
@@ -3230,7 +3303,8 @@ async function importScene(file) {
   S.init = { list: [], activeId: null, round: 1 };
   S.wallT = (typeof d.wallT === 'number' && isFinite(d.wallT)) ? clamp(d.wallT, .05, 20) : .3;
   S.settings = Object.assign({ initLock: true, boundsOn: true, bounds: null }, d.settings || {});
-  S.localAreas = [];
+  S.log = Array.isArray(d.log) ? d.log.slice(0, 200) : [];
+  S.localAreas = []; S.lastLocal = null;
   S.selected = null;
   S._editorKey = '';
   S.map = { img: null, src: '', name: '' };
@@ -3331,6 +3405,7 @@ function clearAll() {
   S.init = { list: [], activeId: null, round: 1 };
   S.wallT = .3;
   S.settings = { initLock: true, boundsOn: true, bounds: null };
+  S.log = []; S.lastLocal = null;
   S.localAreas = [];
   S.map = { img: null, src: '', name: '' };
   S.view.rot = 0;
@@ -4264,6 +4339,7 @@ function netApplyState(st, mapSrc, mapName) {
     S.settings = Object.assign({}, S.settings, st.settings);
     if (S.settings.bounds && !(isFinite(S.settings.bounds.w) && isFinite(S.settings.bounds.h))) S.settings.bounds = null;
   }
+  if (Array.isArray(st.log)) S.log = st.log.map(e => Object.assign({}, e));
   if (isFinite(st.rot)) S.view.rot = st.rot;
   if (mapSrc && (!S.map.img || S.map.src !== mapSrc)) {
     loadImage(mapSrc).then(img => {
@@ -4283,6 +4359,16 @@ function netApplyState(st, mapSrc, mapName) {
 function netReceive(msg) {
   if (!msg || msg.from === S.net.pid) return;
   if (S.net.role === 'gm') {
+    if (msg.t === 'check') {
+      const a = Object.assign({ id: 'req', color: '#ffb454' }, msg.area || {});
+      const names = hitNames(a);
+      const who = (NET.players.get(msg.from) || {}).name || '玩家';
+      const text = who + '：' + areaLabel(a) + ' → ' + (names.length ? ('命中 ' + names.join('、')) : '未命中');
+      addLog(text);
+      toast('收到判定申请：' + (names.length ? ('命中 ' + names.join('、')) : '未命中'));
+      netSend('checkResult', { to: msg.from, text: text });
+      return;
+    }
     if (msg.t === 'hello') {
       let t = S.tokens.find(x => x.owner === msg.from);
       if (!t) t = S.tokens.find(x => !x.owner);
@@ -4350,6 +4436,11 @@ function netReceive(msg) {
         if (msg.imgSrc) t.imgSrc = msg.imgSrc;
         renderTokens(); renderInit(); draw(); autosave();
       }
+    } else if (msg.t === 'checkResult') {
+      if (!msg.to || msg.to === S.net.pid) {
+        addLog('主持人判定：' + (msg.text || ''));
+        toast('主持人判定：' + (msg.text || ''));
+      }
     } else if (msg.t === 'deny') {
       if (!msg.to || msg.to === S.net.pid) toast(msg.reason === 'notTurn' ? '还没轮到你行动' : '主持人拒绝了这次移动');
     }
@@ -4368,7 +4459,7 @@ function netApplyRole() {
     if (S.tool !== 'select') setTool('select');
     S.selected = null;
   }
-  renderNetUI();
+  renderNetUI(); if (typeof syncAskBtn === 'function') syncAskBtn();
 }
 
 function renderNetUI() {
