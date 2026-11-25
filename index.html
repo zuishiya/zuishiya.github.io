@@ -4,7 +4,7 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 <meta name="author" content="醉食 QQ 2180586028" />
-<meta name="version" content="0.3s" />
+<meta name="version" content="0.3u" />
 <title>跑团战术地图</title>
 <style>
 [hidden]{display:none!important}
@@ -202,6 +202,16 @@ input[type=range]{accent-color:#3b82f6;height:20px;background:transparent}
 #netModal{position:fixed;inset:0;background:#05070bd9;backdrop-filter:blur(3px);display:none;place-items:center;z-index:110;padding:20px}
 #netModal.open{display:grid}
 #netModal .modal-card{width:min(440px,100%)}
+.net-players{margin:12px 0;border-top:1px solid #ffffff14;padding-top:8px;max-height:180px;overflow:auto}
+.net-player{display:flex;align-items:center;gap:8px;padding:5px 0;font-size:13px}
+.net-player .nm{flex:0 0 74px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.net-player select{flex:1;min-width:90px}
+.badge{font-size:10px;padding:1px 5px;border-radius:5px;background:#2a3648;color:#9fb2cc}
+.badge.aud{background:#3a2f1f;color:#ffd08a}
+#bindOverlay{position:fixed;inset:56px 0 0 0;background:rgba(5,7,11,.94);z-index:95;display:grid;place-items:center;text-align:center;padding:20px}
+#bindOverlay h3{margin:0 0 8px;font-size:18px;color:#e7efff}
+#bindOverlay p{margin:0;color:#8fa1bb;font-size:13px}
+
 #netInfo{font-size:13px;line-height:1.9;color:#b9c8dd;margin:6px 0 12px}
 #netInfo b{color:#8fb4e8}
 #setupOverlay{position:fixed;inset:56px 0 0;background:rgba(5,7,11,.96);backdrop-filter:blur(2px);z-index:90;display:grid;place-items:center}
@@ -352,6 +362,7 @@ body.player #panel .tk-row,body.player #panel .init-row{pointer-events:none}
       </div>
       <div id="coords"></div>
       <div id="hint"></div>
+      <div id="bindOverlay" hidden><div><h3>等待主持人绑定棋子…</h3><p>主持人把你分配到棋子后，画面会自动出现。</p></div></div>
       <div id="toast"></div>
   <div id="ctx" class="ctx" hidden><div id="ctxBody"></div></div>
     </div>
@@ -407,6 +418,7 @@ body.player #panel .tk-row,body.player #panel .init-row{pointer-events:none}
         <div class="row"><span class="lbl">张角</span><input id="angle" type="number" step="5" min="1" max="360" value="60" class="grow"><span>°</span></div>
         <div class="hint-row" id="rangeHint"></div>
         <div class="row"><span class="lbl">颜色</span><input id="areaColor" type="color" value="#4da3ff"><span class="lbl">范围色</span></div>
+        <div class="row"><span class="lbl">填充</span><input type="range" id="areaFill" min="0" max="40" step="1" value="11" class="grow"><span class="lbl" id="areaFillVal">11%</span></div>
         <div class="row"><span class="lbl">判定</span><select id="aoeMode" class="grow"><option value="center">按棋子中心</option><option value="edge">边缘接触也命中</option></select></div>
         <button id="btnCircleOnToken">以选中棋子为圆心画圆</button>
         <button id="btnAskCheck" hidden>把最近一次测量发给主持人判定</button>
@@ -482,10 +494,12 @@ body.player #panel .tk-row,body.player #panel .init-row{pointer-events:none}
       <p class="hint">主持人开房间，把 4 位房间码发给玩家；玩家加入后只能动自己的棋子，看到自己的视野。刷新会自动回到原房间；主持人刷新后房间也能恢复（主持人页面需保持打开）。线下跑团不用联机，直接切角色也能用。</p>
       <div class="row"><button class="grow" id="btnNetCreate">开房间（我是主持人）</button></div>
       <div class="row"><input id="netCode" placeholder="房间码，如 7K2Q" maxlength="4" style="flex:1"><input id="netName" placeholder="你的名字" style="flex:1"></div>
-      <div class="row"><button class="grow" id="btnNetJoin">加入房间（我是玩家）</button></div>
+      <div class="row"><select id="netJoinAs" class="grow"><option value="player">玩家（只看自己棋子的视野）</option><option value="audience">观众（全图视野，不能操作）</option></select></div>
+      <div class="row"><button class="grow" id="btnNetJoin">加入房间</button></div>
     </div>
     <div id="netLive" hidden>
       <div id="netInfo"></div>
+      <div id="netPlayers" class="net-players" hidden></div>
       <label class="check" id="setupRow" hidden><input type="checkbox" id="setupMode"> 布场模式（玩家暂停看到）</label>
       <div class="row"><button class="grow" id="btnNetLeave">离开房间</button></div>
     </div>
@@ -506,6 +520,7 @@ body.player #panel .tk-row,body.player #panel .init-row{pointer-events:none}
       <li>棋子列表里点一行选中，点 <b>◎</b> 把镜头移过去，双击行也一样；<b>×</b> 删除，选中后还能「复制」同款</li>
       <li>选中棋子后可填 <b>HP 当前/上限</b> 和状态（正常/受伤/倒地/死亡/中毒）：棋子上会显示血条和状态角标；玩家改自己的 HP 会同步给主持人</li>
       <li><b>Shift+点击</b>棋子可多选：整组一起拖动，<b>Delete</b> 删除整组；再 Shift 点一次取消某个</li>
+      <li>选中棋子在「小队」填同一个队名：同队玩家<b>共享视野</b>；范围区「填充」滑杆调颜色浓度</li>
       <li>先攻区会显示「当前行动」并给棋子套金色圈；点先攻行的 ▶ 可切换行动者，「结束回合」轮到下一位；锁定开启时玩家只能动自己的且轮到时才能改 HP</li>
       <li>选择工具下直接拖动棋子；按住 <kbd>Alt</kbd> 拖动可临时不吸附网格</li>
       <li>选中棋子后在右侧上传头像，或把图片直接拖到棋子上</li>
@@ -538,7 +553,7 @@ body.player #panel .tk-row,body.player #panel .init-row{pointer-events:none}
       <li>地图区「存为预设」把当前底图 + 网格存成按钮，以后像地牢 / 洞穴那样一点就切；长按或右键自定义预设可删</li>
       <li>存档区「截图复制」把当前画面复制到剪贴板；浏览器不允许时自动下载 PNG</li>
       <li>右上角「教程」可以随时重看 7 步新手引导；第一次打开会自动出现，跳过后不再自动弹</li>
-      <li>联机：右上「联机」→ 主持人「开房间」得到 4 位房间码；玩家打开同一网址、点「联机」输码加入。玩家只能移动自己的棋子、只看到自己棋子的视野；主持人可勾「对玩家隐藏」藏起棋子，隐藏棋子连网络消息都不会发给玩家。刷新页面会自动回房，主持人刷新后房间也能恢复。线下跑团不用联机，一台电脑也能用。</li>
+      <li>联机：右上「联机」→ 主持人「开房间」得到 4 位房间码；玩家打开同一网址、点「联机」输码加入；加入后在「联机」里由主持人给每人绑定一枚棋子（可改绑/解绑），观众加入后全图视野、不能操作。玩家只能移动自己的棋子、只看到自己棋子的视野；主持人可勾「对玩家隐藏」藏起棋子，隐藏棋子连网络消息都不会发给玩家。刷新页面会自动回房，主持人刷新后房间也能恢复。线下跑团不用联机，一台电脑也能用。</li>
       <li>布场：主持人切换地图/预设/存档时会自动进入布场模式，玩家暂停看到并显示「正在布场」；布置好后点顶部「完成布场」一次性同步。联机弹窗里也有开关。</li>
       <li>玩家侧：能用测距/圆/扇形量范围（只在本机显示，不会同步给别人）；能改自己的名字、上传头像（会同步给主持人）；移动可用拖动、坐标输入或九宫格。主持人可在先攻区开启「按先攻锁定玩家行动」。</li>
       <li>玩家画完范围后可点「把最近一次测量发给主持人判定」：主持人端会按墙与棋子算命中、记进战斗日志并把结果回给玩家。日志在「战斗日志」折叠区，会随存档保留。</li>
@@ -640,7 +655,7 @@ const S = {
   opts: { radius: 20, angle: 60, color: '#4da3ff' },
   init: { list: [], activeId: null, round: 1 },
   ui: { collapsed: {} },
-  settings: { initLock: true, boundsOn: true, bounds: null, aoeMode: 'center', setup: false },
+  settings: { initLock: true, boundsOn: true, bounds: null, aoeMode: 'center', setup: false, areaFill: 11 },
   localAreas: [],
   log: [],
   propBook: loadPropBook(),
@@ -809,6 +824,7 @@ function render() {
   const sorted = S.tokens.filter(t => S.net.role !== 'player' || !t.hidden)
     .slice().sort((x, y) => (isSel('token', y.id) ? 1 : 0) - (isSel('token', x.id) ? 1 : 0));
   for (const t of sorted) drawToken(t, isSel('token', t.id) || (S.group || []).includes(t.id));
+  drawActiveTurn();
 
   drawFog();
   drawWalls();
@@ -839,7 +855,6 @@ function render() {
     }
   }
 
-  drawActiveTurn();
   drawDraftSnaps();
   drawTokenDrag();
   updateHud();
@@ -970,6 +985,7 @@ function drawArea(a, opt) {
   const sel = !!opt.selected, draft = !!opt.draft;
   const col = a.color || '#4da3ff';
   const ppm = S.grid.ppm, sc = S.view.scale;
+  const fa = Math.max(0, Math.min(.4, (S.settings.areaFill == null ? 11 : S.settings.areaFill) / 100));
   ctx.save();
   ctx.lineJoin = 'round';
   if (sel) { ctx.shadowColor = hexA(col, .8); ctx.shadowBlur = 14; }
@@ -989,7 +1005,7 @@ function drawArea(a, opt) {
     const p = w2s(a.x, a.y);
     const r = Math.max(2, a.r * ppm * sc);
     ctx.beginPath(); ctx.arc(p.x, p.y, r, 0, TAU);
-    ctx.fillStyle = hexA(col, draft ? .07 : .11); ctx.fill();
+    ctx.fillStyle = hexA(col, draft ? fa * .65 : fa); ctx.fill();
     ctx.setLineDash(draft ? [7, 5] : []);
     ctx.lineWidth = sel ? 2.4 : 1.6;
     ctx.strokeStyle = hexA(col, sel ? 1 : .85);
@@ -1010,7 +1026,7 @@ function drawArea(a, opt) {
     ctx.moveTo(p.x, p.y);
     ctx.arc(p.x, p.y, r, a0, a1);
     ctx.closePath();
-    ctx.fillStyle = hexA(col, draft ? .07 : .11); ctx.fill();
+    ctx.fillStyle = hexA(col, draft ? fa * .65 : fa); ctx.fill();
     ctx.setLineDash(draft ? [7, 5] : []);
     ctx.lineWidth = sel ? 2.4 : 1.6;
     ctx.strokeStyle = hexA(col, sel ? 1 : .85);
@@ -1579,6 +1595,7 @@ function punchHole(g, cx, cy, r, alphaMid) {
 function drawFog() {
   if (!S.fog || !S.fog.on) return;
   if (S.net.role === 'gm') return; // 主持人始终看得见全场，迷雾只遮玩家
+  if (S.net.role === 'player' && S.net.audience) return; // 观众全图视野
   const w = Math.max(1, Math.round(W)), h = Math.max(1, Math.round(H));
   if (!fogCv) fogCv = document.createElement('canvas');
   if (!fogMask) fogMask = document.createElement('canvas');
@@ -1604,7 +1621,11 @@ function drawFog() {
   }
   if (S.fog.auto) {
     const R = Math.max(1, S.fog.vision || 10) * S.grid.ppm;
-    const fogSrc = S.net.role === 'player' ? S.tokens.filter(t => t.id === S.net.tokenId) : S.tokens;
+    let fogSrc = S.tokens;
+    if (S.net.role === 'player') {
+      const me = S.tokens.find(t => t.id === S.net.tokenId);
+      fogSrc = S.tokens.filter(t => t === me || (me && me.team && t.team === me.team && !t.hidden));
+    }
     for (const t of fogSrc) {
       if (t.sight === false) continue;
       const c = w2s(t.x, t.y);
@@ -1870,6 +1891,7 @@ function addToken(wx, wy, opts) {
     hp: Number(opts.hp) || 0,
     hpMax: Number(opts.hpMax) || 0,
     status: opts.status || 'ok',
+    team: opts.team || '',
   };
   S.tokens.push(t);
   S.selected = { type: 'token', id: t.id };
@@ -2107,7 +2129,7 @@ function renderTokens() {
       : '<span style="background:' + t.color + '">' + esc((t.name || '?').trim().charAt(0) || '?') + '</span>';
     return '<div class="tk-row' + (isSel('token', t.id) ? ' sel' : '') + '" data-id="' + t.id + '" title="单击选中，双击把镜头移过去">' +
       '<div class="ava">' + inner + '</div>' +
-      '<div class="nm">' + esc(t.name || '未命名') + '<i>' + (Number(t.size) || 1) + ' 格</i></div>' +
+      '<div class="nm">' + esc(t.name || '未命名') + '<i>' + (Number(t.size) || 1) + ' 格' + (t.team ? ' · ' + esc(t.team) : '') + '</i></div>' +
       '<button class="ico" data-act="loc" title="定位到棋子">◎</button>' +
       '<button class="x" data-act="del" title="删除">×</button>' +
       '</div>';
@@ -2130,6 +2152,8 @@ function renderAreas() {
   const hn = $('#areaHits');
   const selA = (S.selected && S.selected.type === 'area') ? getArea(S.selected.id) : null;
   const am = $('#aoeMode'); if (am) am.value = S.settings.aoeMode === 'edge' ? 'edge' : 'center';
+  const af = $('#areaFill'), afv = $('#areaFillVal');
+  if (af) { af.value = S.settings.areaFill == null ? 11 : S.settings.areaFill; afv.textContent = af.value + '%'; }
   const rr = $('#areaRotRow'), rf = $('#areaFollowRow');
   if (rr) {
     rr.hidden = !(selA && selA.type === 'cone');
@@ -2435,6 +2459,7 @@ function buildPlayerEditor(box, t) {
   box.innerHTML =
     (grp.length > 1 ? '<div class="hint-row">已选 ' + grp.length + ' 个棋子：一起拖动，Delete 删除整组；Shift+点击加减</div>' : '') +
     '<div class="row"><span class="lbl">名字</span><input id="tkName" class="grow" maxlength="24" value="' + esc(t.name || '') + '"></div>' +
+    (t.team ? '<div class="hint-row">小队：' + esc(t.team) + '（与队友共享视野）</div>' : '') +
     '<div class="row"><button id="tkAva" class="grow">上传头像</button></div>' +
     '<div class="row"><span class="lbl">HP</span><input id="tkHp" type="number" min="0" max="9999" step="1" class="grow" value="' + (Number(t.hp) || 0) + '"><span>/</span><input id="tkHpMax" type="number" min="0" max="9999" step="1" class="grow" value="' + (Number(t.hpMax) || 0) + '"></div>' +
     '<div class="row"><span class="lbl">状态</span><select id="tkStatus" class="grow">' + statusOptions(t.status) + '</select></div>' +
@@ -2506,12 +2531,23 @@ function buildEditor() {
   if (!t) { box.innerHTML = ''; return; }
   if (S.net.role === 'player') {
     buildPlayerEditor(box, t);
+    if (S.settings.initLock && !canActWithToken(t)) {
+      box.insertAdjacentHTML('afterbegin', '<div class="hint-row">还没轮到你行动：先攻轮到你后自动解锁。</div>');
+      box.querySelectorAll('#tkHp,#tkHpMax,#tkStatus,#tkX,#tkY,#tkStep,#tkStepReset,#tkPad button').forEach(el => el.disabled = true);
+    }
     return;
   }
   const grp = (S.group || []).includes(t.id) ? S.group : [];
   box.innerHTML =
     (grp.length > 1 ? '<div class="hint-row">已选 ' + grp.length + ' 个棋子：一起拖动，Delete 删除整组；Shift+点击加减</div>' : '') +
     '<div class="row"><span class="lbl">名字</span><input id="tkName" class="grow" maxlength="24" value="' + esc(t.name || '') + '"></div>' +
+    (() => {
+      const ids = (S.group || []).includes(t.id) && S.group.length > 1 ? S.group : [t.id];
+      const vals = ids.map(id => (getToken(id) || {}).team || '');
+      const common = vals.every(v => v === vals[0]) ? vals[0] : '';
+      const teams = [...new Set(S.tokens.map(x => x.team).filter(Boolean))];
+      return '<div class="row"><span class="lbl">小队</span><input id="tkTeam" class="grow" maxlength="20" list="teamList" value="' + esc(common) + '"><datalist id="teamList">' + teams.map(n => '<option value="' + esc(n) + '">').join('') + '</datalist></div>';
+    })() +
     '<div class="row"><span class="lbl">颜色</span><input id="tkColor" type="color" value="' + t.color + '"><span class="lbl">体型</span>' +
     '<input id="tkSize" type="number" min="0.1" max="100" step="0.5" class="grow" value="' + (Number(t.size) || 1) + '"><span class="lbl">格</span></div>' +
     '<label class="check"><input type="checkbox" id="tkSight"' + (t.sight !== false ? ' checked' : '') + '> 提供视野（迷雾下照亮周围）</label>' +
@@ -2528,6 +2564,14 @@ function buildEditor() {
     '<div class="row"><button id="tkAva" class="grow">上传头像</button><button id="tkDup">复制</button><button id="tkDel" class="danger">删除</button></div>';
 
   $('#tkName').addEventListener('input', e => { t.name = e.target.value; renderTokens(); draw(); autosave(); });
+  $('#tkTeam').addEventListener('change', e => {
+    const v = String(e.target.value || '').trim().slice(0, 20);
+    const ids = (S.group || []).includes(t.id) && S.group.length > 1 ? S.group.slice() : [t.id];
+    ids.forEach(id => { const q = getToken(id); if (q) q.team = v; });
+    renderTokens(); draw(); autosave(); pushHistory();
+    if (S.net.role === 'gm') netPublish();
+    toast(v ? '已编入小队：' + v : '已移出小队');
+  });
   $('#tkName').addEventListener('change', pushHistory);
   $('#tkColor').addEventListener('input', e => { t.color = e.target.value; renderTokens(); draw(); autosave(); });
   $('#tkColor').addEventListener('change', pushHistory);
@@ -2690,7 +2734,8 @@ function fitContent() {
 }
 
 function setTool(t) {
-  if (S.net.role === 'player' && !['select','measure','circle','cone'].includes(t)) t = 'select';
+  if (S.net.role === 'player' && S.net.audience) t = 'select';
+  else if (S.net.role === 'player' && !['select','measure','circle','cone'].includes(t)) t = 'select';
   S.tool = t;
   S.draft = null;
   $$('.tools button').forEach(b => b.classList.toggle('active', b.dataset.tool === t));
@@ -4233,7 +4278,7 @@ function netSaveSession() {
     if (S.net.role === 'solo' || !S.net.room) { localStorage.removeItem(NET_SESSION_KEY); return; }
     localStorage.setItem(NET_SESSION_KEY, JSON.stringify({
       role: S.net.role, room: S.net.room, pid: S.net.pid,
-      name: S.net.name, tokenId: S.net.tokenId || '',
+      name: S.net.name, tokenId: S.net.tokenId || '', audience: !!S.net.audience,
     }));
   } catch (e) {}
 }
@@ -4337,7 +4382,7 @@ function netTeardown() {
 }
 function netClose() {
   netTeardown();
-  S.net.role = 'solo'; S.net.room = ''; S.net.tokenId = ''; S.net.pid = '';
+  S.net.role = 'solo'; S.net.room = ''; S.net.tokenId = ''; S.net.pid = ''; S.net.audience = false;
   NET.attempt = 0;
 }
 
@@ -4355,6 +4400,7 @@ function netStateFor(pid) {
   const st = netState();
   if (pid) st.tokens = st.tokens.filter(t => !t.hidden || t.owner === pid);
   else st.tokens = st.tokens.filter(t => !t.hidden);
+  st.settings = { initLock: !!S.settings.initLock };
   return st;
 }
 
@@ -4367,23 +4413,44 @@ function netPublish() {
   }, 160);
 }
 
+function netMapData() {
+  if (!S.map.img) return { src: '', name: '' };
+  const im = S.map.img;
+  const key = [im.width, im.height, S.map.name || '', S.map.src ? S.map.src.length : 0].join('|');
+  if (S.map._netKey === key && S.map._netSrc) return { src: S.map._netSrc, name: S.map.name || '' };
+  let max = 1400, q = .72, src = '';
+  for (let i = 0; i < 3; i++) {
+    const sc = Math.min(1, max / Math.max(im.width, im.height));
+    const c = document.createElement('canvas');
+    c.width = Math.max(1, Math.round(im.width * sc)); c.height = Math.max(1, Math.round(im.height * sc));
+    c.getContext('2d').drawImage(im, 0, 0, c.width, c.height);
+    src = c.toDataURL('image/jpeg', q);
+    if (src.length <= 900000) break;
+    max = Math.round(max * .78); q = Math.max(.45, q - .1);
+  }
+  S.map._netKey = key; S.map._netSrc = src;
+  return { src: src, name: S.map.name || '' };
+}
 function netFullFor(to, you) {
   if (S.net.role === 'gm' && S.settings.setup) return;
+  const mp = netMapData();
   if (!to) {
     // 地图/全员刷新：给每个已知玩家发各自的过滤快照；没有玩家时发公开快照
     if (NET.players.size) {
       for (const [pid, info] of NET.players.entries()) netFullFor(pid, info.tokenId || '');
       return;
     }
-    netSend('full', { to: '', state: netStateFor(''), you: '', mapSrc: S.map.src || '', mapName: S.map.name || '' });
+    netSend('full', { to: '', state: netStateFor(''), you: '', mapSrc: mp.src, mapName: mp.name });
     return;
   }
-  netSend('full', { to: to, state: netStateFor(to), you: you || '', mapSrc: S.map.src || '', mapName: S.map.name || '' });
+  const info = NET.players.get(to) || {};
+  netSend('full', { to: to, state: netStateFor(to), you: you || '', audience: !!info.audience, mapSrc: mp.src, mapName: mp.name });
 }
 
 function netApplyState(st, mapSrc, mapName) {
   if (!st || typeof st !== 'object') return;
   if (st.grid && typeof st.grid === 'object') mergeGrid(st.grid);
+  if (st.settings) S.settings.initLock = !!st.settings.initLock;
   if (Array.isArray(st.tokens)) S.tokens = st.tokens.filter(t => t && t.id).map(t => Object.assign({}, t));
   if (Array.isArray(st.walls)) S.walls = st.walls.filter(x => x && x.id).map(x => Object.assign({}, x));
   if (Array.isArray(st.props)) S.props = st.props.filter(x => x && x.id).map(x => Object.assign({}, x));
@@ -4432,20 +4499,19 @@ function netReceive(msg) {
       return;
     }
     if (msg.t === 'hello') {
-      let t = S.tokens.find(x => x.owner === msg.from);
-      if (!t) t = S.tokens.find(x => !x.owner);
-      if (!t) {
-        const c = S.map.img
-          ? { x: S.map.img.width / 2, y: S.map.img.height / 2 }
-          : s2w(canvas.clientWidth / 2, canvas.clientHeight / 2);
-        t = addToken(c.x, c.y, { name: msg.name || '玩家' });
+      const audience = !!msg.audience;
+      let tokenId = '';
+      if (!audience) {
+        const owned = S.tokens.find(x => x.owner === msg.from);
+        if (owned) tokenId = owned.id;
       }
-      t.owner = msg.from; t.hidden = false;
-      NET.players.set(msg.from, { name: msg.name || '玩家', tokenId: t.id });
-      renderPanel(); draw(); autosave();
+      NET.players.set(msg.from, { name: msg.name || (audience ? '观众' : '玩家'), tokenId: tokenId, audience: audience });
+      renderNetPlayers();
       if (S.settings.setup) netSend('setup', { to: msg.from, on: true });
-      else netFullFor(msg.from, t.id);
-      toast('玩家「' + (msg.name || '玩家') + '」加入房间');
+      else netFullFor(msg.from, tokenId);
+      toast((audience ? '观众' : '玩家') + '「' + (msg.name || '') + '」加入房间');
+    } else if (msg.t === 'bindAck') {
+      // no-op
     } else if (msg.t === 'move') {
       const t = getToken(msg.id);
       if (!t || t.owner !== msg.from) return;
@@ -4478,9 +4544,10 @@ function netReceive(msg) {
       if (['ok', 'hurt', 'down', 'dead', 'poison'].includes(msg.status)) t.status = msg.status;
       renderPanel(); draw(); autosave();
     } else if (msg.t === 'bye') {
+      const gone = NET.players.get(msg.from);
+      if (gone) { const gt = getToken(gone.tokenId); if (gt && gt.owner === msg.from) gt.owner = null; }
       NET.players.delete(msg.from);
-      const t = S.tokens.find(x => x.owner === msg.from);
-      if (t) { t.owner = null; renderPanel(); draw(); autosave(); }
+      renderNetPlayers(); renderPanel(); draw(); autosave();
     }
     return;
   }
@@ -4493,17 +4560,29 @@ function netReceive(msg) {
       S.setupWait = false;
       $('#setupOverlay').hidden = true;
       NET.gmId = msg.from || '';
-      if (msg.you) { S.net.tokenId = msg.you; netSaveSession(); }
+      S.net.audience = !!msg.audience;
+      S.net.tokenId = msg.you || '';
+      netSaveSession();
       netApplyState(msg.state, msg.mapSrc, msg.mapName);
       if (S.net.tokenId) select({ type: 'token', id: S.net.tokenId });
+      $('#bindOverlay').hidden = S.net.audience || !!S.net.tokenId;
       netApplyRole();
-      toast('已同步主持人画面');
+      toast(S.net.audience ? '已同步主持人画面（观众全图视野）' : (S.net.tokenId ? '已同步主持人画面' : '等待主持人绑定棋子'));
     } else if (msg.t === 'state') {
       if (NET.gmId && msg.from !== NET.gmId) return;
       if (msg.to && msg.to !== S.net.pid) return;
       netApplyState(msg.state);
+    } else if (msg.t === 'bind') {
+      if (!msg.to || msg.to === S.net.pid) {
+        S.net.tokenId = msg.tokenId || '';
+        netSaveSession();
+        $('#bindOverlay').hidden = S.net.audience || !!S.net.tokenId;
+        if (S.net.tokenId) select({ type: 'token', id: S.net.tokenId });
+        netApplyRole();
+        toast(S.net.tokenId ? '主持人已把你绑定到棋子' : '主持人解除了你的棋子');
+      }
     } else if (msg.t === 'who') {
-      netSend('hello', { rejoin: true });
+      netSend('hello', { rejoin: true, audience: !!S.net.audience });
     } else if (msg.t === 'profile') {
       const t = S.tokens.find(x => x.owner === msg.from);
       if (t) {
@@ -4522,17 +4601,66 @@ function netReceive(msg) {
   }
 }
 
+function renderNetPlayers() {
+  const box = $('#netPlayers');
+  if (!box) return;
+  if (S.net.role !== 'gm') { box.hidden = true; return; }
+  box.hidden = !(S.net.connected && S.net.room);
+  if (box.hidden) return;
+  if (!NET.players.size) { box.innerHTML = '<div class="hint">还没有玩家加入</div>'; return; }
+  const rows = [];
+  for (const [pid, info] of NET.players.entries()) {
+    if (info.audience) {
+      rows.push('<div class="net-player"><span class="nm">' + esc(info.name) + '</span><span class="badge aud">观众</span><span class="hint">全图视野</span></div>');
+      continue;
+    }
+    const opts = ['<option value="">未绑定棋子</option>'].concat(S.tokens.map(t =>
+      '<option value="' + esc(t.id) + '"' + (info.tokenId === t.id ? ' selected' : '') + '>' + esc(t.name || '棋子') + '</option>'
+    )).join('');
+    rows.push('<div class="net-player"><span class="nm">' + esc(info.name) + '</span><span class="badge">玩家</span><select data-pid="' + esc(pid) + '">' + opts + '</select></div>');
+  }
+  box.innerHTML = rows.join('');
+}
+
+function bindPlayer(pid, tokenId) {
+  if (S.net.role !== 'gm') return;
+  const info = NET.players.get(pid);
+  if (!info || info.audience) return;
+  tokenId = String(tokenId || '');
+  if (tokenId) {
+    const t = getToken(tokenId);
+    if (!t) return;
+    for (const [op, oi] of NET.players.entries()) {
+      if (op !== pid && oi.tokenId === tokenId) { oi.tokenId = ''; netSend('bind', { to: op, tokenId: '' }); }
+    }
+    for (const q of S.tokens) { if (q.owner === pid && q.id !== tokenId) q.owner = null; }
+    t.owner = pid; t.hidden = false;
+  }
+  const old = getToken(info.tokenId);
+  if (old && old.owner === pid && old.id !== tokenId) old.owner = null;
+  info.tokenId = tokenId;
+  netSend('bind', { to: pid, tokenId: tokenId });
+  netFullFor(pid, tokenId);
+  renderNetPlayers(); renderPanel(); draw(); autosave();
+  toast(tokenId ? ('已绑定「' + (getToken(tokenId).name || '棋子') + '」') : '已解除绑定');
+}
+
 function netApplyRole() {
   const player = S.net.role === 'player';
   document.body.classList.toggle('player', player);
+  document.body.classList.toggle('audience', player && !!S.net.audience);
   const btn = $('#btnNet');
   if (btn) {
     btn.classList.toggle('on', S.net.connected);
-    btn.textContent = S.net.role === 'gm' ? '联机·主持' : (player ? '联机·玩家' : '联机');
+    btn.textContent = S.net.role === 'gm' ? '联机·主持' : (player ? (S.net.audience ? '联机·观众' : '联机·玩家') : '联机');
   }
   if (player) {
     if (S.tool !== 'select') setTool('select');
     S.selected = null;
+    const needBind = !S.net.audience && !S.net.tokenId && S.net.connected;
+    $('#bindOverlay').hidden = !needBind;
+  } else {
+    $('#bindOverlay').hidden = true;
   }
   renderNetUI(); if (typeof syncAskBtn === 'function') syncAskBtn();
 }
@@ -4546,9 +4674,12 @@ function renderNetUI() {
     $('#setupRow').hidden = S.net.role !== 'gm';
     $('#setupMode').checked = !!S.settings.setup;
     info.innerHTML = '房间 <span class="room-code">' + S.net.room + '</span><br>' +
-      '身份：<b>' + (S.net.role === 'gm' ? '主持人（本机权威）' : '玩家') + '</b>' +
-      (S.net.role === 'gm' ? '<br>把房间码发给玩家，他们打开同一网址、点「联机」加入。' : '<br>你只能移动自己的棋子；视野由主持人同步。');
+      '身份：<b>' + (S.net.role === 'gm' ? '主持人（本机权威）' : (S.net.audience ? '观众（全图视野）' : '玩家')) + '</b>' +
+      (S.net.role === 'gm'
+        ? '<br>把房间码发给玩家；玩家加入后在这里绑定棋子，观众直接看全图。'
+        : (S.net.audience ? '<br>观众模式：全图视野，不能移动棋子。' : (S.net.tokenId ? '<br>你只能移动自己的棋子；视野由主持人同步。' : '<br>等待主持人在玩家列表里把你绑定到棋子。')));
   }
+  renderNetPlayers();
 }
 
 function setSetup(on, silent) {
@@ -4570,7 +4701,7 @@ function openNet() {
 }
 function closeNet() { $('#netModal').classList.remove('open'); }
 
-function startNet(role) {
+function startNet(role, audience) {
   if (role === 'gm') {
     S.net = { role: 'gm', room: netRoomCode(), pid: netPid(), tokenId: '', name: ($('#netName').value || '主持人'), connected: false };
     netSaveSession();
@@ -4581,9 +4712,10 @@ function startNet(role) {
   } else {
     const code = ($('#netCode').value || '').trim().toUpperCase();
     if (!/^[A-Z0-9]{4}$/.test(code)) { toast('房间码是 4 位字母或数字'); return; }
-    S.net = { role: 'player', room: code, pid: netPid(), tokenId: '', name: ($('#netName').value || '玩家'), connected: false };
+    const aud = !!audience;
+    S.net = { role: 'player', room: code, pid: netPid(), tokenId: '', name: ($('#netName').value || (aud ? '观众' : '玩家')), connected: false, audience: aud };
     netSaveSession();
-    netConnect(code, () => { netSend('hello', {}); netApplyRole(); closeNet(); toast('已加入房间 ' + code + '，等待主持人同步'); });
+    netConnect(code, () => { netSend('hello', { audience: aud }); netApplyRole(); closeNet(); toast('已加入房间 ' + code + (aud ? '（观众）' : '，等待主持人绑定棋子')); });
   }
   netApplyRole();
 }
@@ -4609,6 +4741,7 @@ function netAutoResume() {
   S.net = {
     role: d.role, room: d.room, pid: d.pid, tokenId: d.tokenId || '',
     name: d.name || (d.role === 'gm' ? '主持人' : '玩家'), connected: false,
+    audience: !!d.audience,
   };
   netApplyRole();
   toast(d.role === 'gm' ? '正在恢复房间 ' + d.room + '…' : '正在回到房间 ' + d.room + '…');
@@ -4712,7 +4845,12 @@ function bindUI() {
   $('#btnNet').addEventListener('click', openNet);
   $('#netClose').addEventListener('click', closeNet);
   $('#btnNetCreate').addEventListener('click', () => startNet('gm'));
-  $('#btnNetJoin').addEventListener('click', () => startNet('player'));
+  $('#btnNetJoin').addEventListener('click', () => startNet('player', ($('#netJoinAs') || {}).value === 'audience'));
+  const np = $('#netPlayers');
+  if (np) np.addEventListener('change', (e) => {
+    const sel = e.target.closest('select[data-pid]');
+    if (sel) bindPlayer(sel.dataset.pid, sel.value);
+  });
   $('#btnNetLeave').addEventListener('click', () => leaveNet(false));
   $('#setupMode').addEventListener('change', e => setSetup(e.target.checked));
   $('#btnSetupFinish').addEventListener('click', () => setSetup(false));
@@ -4829,6 +4967,11 @@ function bindUI() {
     draw();
   });
   $('#areaColor').addEventListener('input', e => { S.opts.color = e.target.value; draw(); });
+  $('#areaFill').addEventListener('input', e => {
+    S.settings.areaFill = clamp(Number(e.target.value) || 0, 0, 40);
+    $('#areaFillVal').textContent = S.settings.areaFill + '%';
+    draw(); autosave();
+  });
   $('#btnCircleOnToken').addEventListener('click', circleOnSelected);
 
   $('#btnAddToken').addEventListener('click', () => {
@@ -5154,7 +5297,7 @@ function init() {
 }
 
 window.__TRPG = S;
-window.__TRPG_API = { tokensInArea, hitNames, undo, redo, pushHistory, gridCellForImage, renderPanel, visionPolygon, wallSegs, raySegT, losBlocked, wallAt, netPublish, netFullFor, netState,
+window.__TRPG_API = { tokensInArea, hitNames, undo, redo, pushHistory, gridCellForImage, renderPanel, visionPolygon, wallSegs, raySegT, losBlocked, wallAt, netPublish, netFullFor, netState, bindPlayer, netMapData, netPlayers: () => Array.from(NET.players.entries()),
   netDrop: () => { NET.suppressClose = false; if (NET.ws) NET.ws.close(); },
   netSession: () => netLoadSession() };
 init();
