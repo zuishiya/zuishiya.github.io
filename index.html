@@ -4,7 +4,7 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 <meta name="author" content="醉食 QQ 2180586028" />
-<meta name="version" content="0.3h" />
+<meta name="version" content="0.3k" />
 <title>跑团战术地图</title>
 <style>
 :root{
@@ -393,6 +393,8 @@ body.player #panel .tk-row,body.player #panel .init-row{pointer-events:none}
         <button id="btnCircleOnToken">以选中棋子为圆心画圆</button>
         <div class="list" id="areaList"></div>
         <div class="hint-row" id="areaHits"></div>
+        <div class="row" id="areaRotRow" hidden><span class="lbl">扇形朝向</span><input id="areaRot" type="number" min="-180" max="180" step="5" class="grow"><span>°</span></div>
+        <div class="row" id="areaFollowRow" hidden><span class="lbl">跟随棋子</span><select id="areaFollow" class="grow"><option value="">不跟随</option></select></div>
       </section>
 
       <section class="sec" data-sec="scene">
@@ -408,6 +410,7 @@ body.player #panel .tk-row,body.player #panel .init-row{pointer-events:none}
         <input type="file" id="propFile" accept="image/*" hidden>
         <div class="hint-row">点一种再点地图放置（纯装饰）；导入的图片会存进本机物品库，下次还能用；墙用工具栏「墙」拖拽画，挡移动和范围视线</div>
         <div class="row"><span class="lbl">墙厚</span><input id="wallThick" type="number" min="0.05" max="20" step="0.05" value="0.3" class="grow"><span>米</span></div>
+        <div class="row" id="wallDoorRow" hidden><label class="chk"><input type="checkbox" id="wallDoor"> 这是门（可通行、不挡视线）</label></div>
         <div class="row"><label class="check"><input type="checkbox" id="boundsOn" checked> 限制棋子在地图边界内</label></div>
         <div class="row"><button id="btnBounds" class="grow">设置地图边界</button><button id="btnBoundsClear" class="mini">重置</button></div>
         <div class="hint-row" id="boundsInfo"></div>
@@ -427,6 +430,9 @@ body.player #panel .tk-row,body.player #panel .init-row{pointer-events:none}
       <section class="sec" data-sec="save">
         <h3>存档</h3>
         <div class="row"><button id="btnExport" class="grow">导出存档</button><button id="btnImportScene" class="grow">导入存档</button></div>
+        <div class="row"><button id="btnPackOut" class="grow">导出素材包</button><button id="btnPackIn" class="grow">导入素材包</button></div>
+        <p class="hint">素材包含：自定义地图预设、物品库、当前场景。换电脑或分享给朋友时用一个文件搬走全部素材。</p>
+        <input type="file" id="packFile" accept=".json,application/json" hidden>
         <div class="row"><button id="btnShot" class="grow" title="把当前画面复制到剪贴板（不支持时下载 PNG）">截图复制</button></div>
         <button id="btnClear" class="ghost">清空场景</button>
       </section>
@@ -493,10 +499,11 @@ body.player #panel .tk-row,body.player #panel .init-row{pointer-events:none}
       <li>摆件（木桶/木箱/圆桌/椅子/火把/树/石像/地毯）纯装饰；墙用工具栏「墙 (W)」拖拽画，会挡住棋子移动和范围视线</li>
       <li>右键/长按摆件或墙体可选中、复制、删除；选中后按住拖动可移动</li>
       <li>「场景」里可以「导入物品图片」做自定义摆件：导入后自动放进场景并存进本机物品库，下次打开还在；点物品库缩略图可继续放置，选中自定义摆件点「存入物品库」也会保存</li>
-      <li>墙有厚度：面板「场景」里的「墙厚」可改；选中一面墙改的是这一面，没选中时改的是下一面新墙。范围遇到墙会被切断，命中与视野都按墙的实际厚度算</li>
+      <li>墙有厚度：面板「场景」里的「墙厚」可改；选中一面墙后，墙上会出现两个端点手柄，拖端点可改长度/角度，勾「这是门」就变成可通行、不挡视线的门。范围遇到墙会被切断，命中与视野都按墙的实际厚度算</li>
       <li>迷雾：面板「迷雾」里启用；主持人自己不受迷雾影响（始终看全场），玩家只看到自己棋子的视野；默认每个棋子都提供视野（可在棋子编辑里取消，怪物就不会照亮四周），墙会挡住视野；「手动揭雾」拖动涂抹，揭开的区域随存档保存</li>
       <li>面板上每块标题（地图 / 棋子 / 先攻 / 范围 / 场景 / 存档）都能点一下收起，收起状态会记住</li>
       <li><b>右键单击</b>画布出菜单（手机上长按）：空白处可加棋子 / 导入底图 / 截图，棋子上可复制 / 加先攻 / 换头像 / 删除，范围上可删除</li>
+      <li>选中扇形后拖黄色圆点可旋转，面板「扇形朝向」也能直接输角度；「跟随棋子」绑定后，棋子移动范围自动跟着走，解绑即停。</li>
       <li>选中范围后拖动内部即可整体移动。磁铁开启时，圆心、扇形顶点或按下处较近的线端会吸附到棋子或格心；半径、方向和线长不变。关闭磁铁或按住 Alt 可自由拖动。</li>
       <li>棋子「体型」可以直接填 0.5–10 格，不再只有 1/1.5/2/3</li>
       <li>顶部磁铁按钮＝捕捉开关：开启时棋子移动、测距/圆/扇形两端都会吸附格子中心（靠近棋子吸棋子），关闭则完全自由；旋转后九宫格方向仍按屏幕方向走</li>
@@ -516,7 +523,7 @@ body.player #panel .tk-row,body.player #panel .init-row{pointer-events:none}
       <li><kbd>V</kbd> 选择 · <kbd>T</kbd> 棋子 · <kbd>C</kbd> 圆 · <kbd>F</kbd> 扇形 · <kbd>M</kbd> 测距 · <kbd>G</kbd> 网格</li>
       <li><kbd>Delete</kbd> 删除选中 · <kbd>Esc</kbd> 取消 / 回到选择</li>
     </ul>
-    <div class="modal-foot"><span class="credit">作者：<b>醉食</b> · QQ 2180586028 · v0.3h</span><span style="flex:1"></span><button id="modalTour" class="ghost">新手教程</button><button id="modalClose">知道了</button></div>
+    <div class="modal-foot"><span class="credit">作者：<b>醉食</b> · QQ 2180586028 · v0.3k</span><span style="flex:1"></span><button id="modalTour" class="ghost">新手教程</button><button id="modalClose">知道了</button></div>
   </div>
 </div>
 
@@ -775,6 +782,7 @@ function render() {
   drawWalls();
 
   // 墙与范围/画墙预览/命中提示画在迷雾之上：GM 操作时始终看得见自己在画什么
+  syncFollowAreas();
   for (const a of S.areas) drawArea(a, { selected: isSel('area', a.id) });
   for (const a of S.localAreas) drawArea(a, { draft: true });
   drawBounds();
@@ -965,6 +973,13 @@ function drawArea(a, opt) {
     const ly = p.y + Math.sin(a.angle + viewRot()) * r * .58;
     if (clipped) { ctx.restore(); ctx.save(); }
     tag(Math.round(a.spread * 180 / Math.PI) + '° · ' + fmtM(a.r), lx, clamp(ly, 12, H - 12), hexA(col, 1));
+    if (sel && !draft) {
+      const hx = p.x + Math.cos(a.angle + viewRot()) * r * .82;
+      const hy = p.y + Math.sin(a.angle + viewRot()) * r * .82;
+      ctx.beginPath(); ctx.arc(hx, hy, 5, 0, TAU);
+      ctx.fillStyle = 'rgba(255,210,120,.95)'; ctx.fill();
+      ctx.strokeStyle = 'rgba(20,24,30,.8)'; ctx.lineWidth = 1.5; ctx.stroke();
+    }
   } else if (a.type === 'line') {
     const p1 = w2s(a.x1, a.y1), p2 = w2s(a.x2, a.y2);
     ctx.setLineDash([8, 5]);
@@ -1029,10 +1044,11 @@ function propAt(wx, wy, padPx) {
   }
   return null;
 }
-function wallAt(wx, wy, padPx) {
+function wallAt(wx, wy, padPx, skipDoor) {
   const pad = (padPx == null ? 6 : padPx) / S.view.scale;
   for (let i = S.walls.length - 1; i >= 0; i--) {
     const w = S.walls[i];
+    if (skipDoor && w.door) continue;
     const half = (Number(w.t) || .3) * S.grid.ppm / 2;
     if (distToSeg(wx, wy, w.x1, w.y1, w.x2, w.y2) <= half + pad) return w;
   }
@@ -1058,7 +1074,7 @@ function addProp(wx, wy, kind, opts) {
 function addWall(x1, y1, x2, y2, opts) {
   opts = opts || {};
   if (Math.hypot(x2 - x1, y2 - y1) < 4) return null;
-  const wl = { id: uid(), x1, y1, x2, y2, t: clamp(Number(opts.t) || S.wallT || .3, .05, 20) };
+  const wl = { id: uid(), x1, y1, x2, y2, t: clamp(Number(opts.t) || S.wallT || .3, .05, 20), door: !!opts.door };
   S.walls.push(wl);
   S.selected = { type: 'wall', id: wl.id };
   S._editorKey = '';
@@ -1243,10 +1259,27 @@ function drawWalls() {
     const tw = Math.max(1.2, (Number(w.t) || .3) * S.grid.ppm);
     const sel = isSel('wall', w.id);
     ctx.beginPath(); ctx.moveTo(w.x1, w.y1); ctx.lineTo(w.x2, w.y2);
+    ctx.globalAlpha = w.door ? .28 : 1;
     ctx.strokeStyle = 'rgba(0,0,0,.5)'; ctx.lineWidth = tw + 5 / k; ctx.stroke();
     if (sel) { ctx.strokeStyle = 'rgba(255,190,90,.55)'; ctx.lineWidth = tw + 3 / k; ctx.stroke(); }
     ctx.strokeStyle = sel ? '#8c7a55' : '#6f7887'; ctx.lineWidth = tw; ctx.stroke();
+    if (w.door) {
+      ctx.globalAlpha = 1;
+      ctx.save();
+      ctx.setLineDash([tw * .9, tw * .9]);
+      ctx.strokeStyle = sel ? '#c99a4a' : '#9a7a45';
+      ctx.lineWidth = tw * .55;
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillStyle = 'rgba(255,220,150,.85)';
+      for (const q of [[w.x1, w.y1], [w.x2, w.y2]]) {
+        ctx.beginPath(); ctx.arc(q[0], q[1], Math.max(2, tw * .28), 0, TAU); ctx.fill();
+      }
+      ctx.restore();
+    }
+    ctx.globalAlpha = w.door ? .28 : 1;
     ctx.strokeStyle = 'rgba(255,255,255,.16)'; ctx.lineWidth = Math.max(1 / k, tw * .2); ctx.stroke();
+    ctx.globalAlpha = 1;
     // 砖缝刻度，读起来更像墙
     const L = Math.hypot(w.x2 - w.x1, w.y2 - w.y1);
     const ux = (w.x2 - w.x1) / (L || 1), uy = (w.y2 - w.y1) / (L || 1);
@@ -1257,6 +1290,16 @@ function drawWalls() {
       const px2 = w.x1 + ux * d, py2 = w.y1 + uy * d;
       const nx = -uy * tw * .46, ny = ux * tw * .46;
       ctx.beginPath(); ctx.moveTo(px2 + nx, py2 + ny); ctx.lineTo(px2 - nx, py2 - ny); ctx.stroke();
+    }
+  }
+  // 选中墙体的端点手柄
+  const sw = (S.selected && S.selected.type === 'wall') ? getWall(S.selected.id) : null;
+  if (sw) {
+    ctx.fillStyle = 'rgba(255,210,120,.95)';
+    ctx.strokeStyle = 'rgba(20,24,30,.8)';
+    ctx.lineWidth = 1.5 / k;
+    for (const q of [[sw.x1, sw.y1], [sw.x2, sw.y2]]) {
+      ctx.beginPath(); ctx.arc(q[0], q[1], Math.max(4, 6 / k), 0, TAU); ctx.fill(); ctx.stroke();
     }
   }
   ctx.restore();
@@ -1300,6 +1343,7 @@ function segsCross(x1, y1, x2, y2, x3, y3, x4, y4) {
 /* 视线是否被墙挡住（墙按中心线判定） */
 function losBlocked(x1, y1, x2, y2) {
   for (const w of S.walls) {
+    if (w.door) continue;
     for (const s of wallSegs(w)) {
       if (segsCross(x1, y1, x2, y2, s[0], s[1], s[2], s[3])) return true;
     }
@@ -1413,6 +1457,7 @@ function visionPolygon(cx, cy, R) {
   const angs = [];
   for (let i = 0; i < 48; i++) angs.push(i / 48 * TAU);
   for (const w of S.walls) {
+    if (w.door) continue;
     for (const s of wallSegs(w)) {
       for (const q of [[s[0], s[1]], [s[2], s[3]]]) {
         let a = Math.atan2(q[1] - cy, q[0] - cx);
@@ -1691,6 +1736,19 @@ function translateShapeDrag(d, w, alt) {
   else Object.assign(shape,{x:b.x+mx,y:b.y+my});
 }
 
+function updateWallEnd(d, w, alt) {
+  const wl = getWall(d.id);
+  if (!wl) return;
+  let p = (alt || !S.grid.snap) ? { x: w.x, y: w.y } : snapPoint(w.x, w.y);
+  p = clampToBounds(p.x, p.y, 2);
+  const ex = d.end === 1 ? wl.x2 : wl.x1;
+  const ey = d.end === 1 ? wl.y2 : wl.y1;
+  if (Math.hypot(p.x - ex, p.y - ey) < 4) return;   // 太短就不动，避免墙塌成点
+  if (d.end === 1) { wl.x1 = p.x; wl.y1 = p.y; }
+  else { wl.x2 = p.x; wl.y2 = p.y; }
+  d.moved = true;
+}
+
 /* ---------------- 变更 ---------------- */
 function centerOnToken(t) {
   if (!t) return;
@@ -1715,7 +1773,7 @@ function addToken(wx, wy, opts) {
   opts = opts || {};
   let p = (S.grid.snap && !opts.noSnap) ? snapPoint(wx, wy) : { x: wx, y: wy };
   p = clampToBounds(p.x, p.y, Math.max(3, (opts.size || 1) * cellWorld() * .46));
-  if (wallAt(p.x, p.y, 0)) { toast('这里被墙占了，换个位置'); return null; }
+  if (wallAt(p.x, p.y, 0, true)) { toast('这里被墙占了，换个位置'); return null; }
   const t = {
     id: uid(), x: p.x, y: p.y,
     name: opts.name || ('棋子 ' + (S.tokens.length + 1)),
@@ -1731,6 +1789,22 @@ function addToken(wx, wy, opts) {
   autosave();
   pushHistory();
   return t;
+}
+
+function syncFollowAreas() {
+  for (const a of S.areas) {
+    if (!a.follow) continue;
+    const t = getToken(a.follow);
+    if (!t) { delete a.follow; continue; }
+    if (a.type === 'line') {
+      const off = a.followOff || { dx: 0, dy: 0 };
+      const nx = t.x + off.dx, ny = t.y + off.dy;
+      const mx = nx - a.x1, my = ny - a.y1;
+      a.x1 = nx; a.y1 = ny; a.x2 += mx; a.y2 += my;
+    } else {
+      a.x = t.x; a.y = t.y;
+    }
+  }
 }
 
 function addArea(a) {
@@ -1795,6 +1869,7 @@ function syncHistBtns() {
   if (r) r.disabled = HIST.idx >= HIST.stack.length - 1;
 }
 function pushHistory() {
+  syncFollowAreas();
   const snap = cloneSnap();
   const key = JSON.stringify(snap);
   if (HIST.idx >= 0 && HIST.stack[HIST.idx].key === key) { syncHistBtns(); return; }
@@ -1957,6 +2032,23 @@ function renderAreas() {
   const box = $('#areaList');
   const hn = $('#areaHits');
   const selA = (S.selected && S.selected.type === 'area') ? getArea(S.selected.id) : null;
+  const rr = $('#areaRotRow'), rf = $('#areaFollowRow');
+  if (rr) {
+    rr.hidden = !(selA && selA.type === 'cone');
+    const ri = $('#areaRot');
+    if (ri && selA && selA.type === 'cone' && document.activeElement !== ri) {
+      ri.value = String(Math.round(((selA.angle || 0) * 180 / Math.PI) * 10) / 10);
+    }
+  }
+  if (rf) {
+    rf.hidden = !selA;
+    const fs = $('#areaFollow');
+    if (fs) {
+      fs.innerHTML = '<option value="">不跟随</option>' + S.tokens.map(t =>
+        '<option value="' + t.id + '">' + esc(t.name || '棋子') + '</option>').join('');
+      fs.value = selA ? (selA.follow || '') : '';
+    }
+  }
   if (hn) {
     if (selA) {
       const names = hitNames(selA);
@@ -2058,6 +2150,10 @@ function renderScene() {
     const sw = (S.selected && S.selected.type === 'wall') ? getWall(S.selected.id) : null;
     wt.value = String(sw ? (Number(sw.t) || .3) : (S.wallT || .3));
   }
+  const dr = $('#wallDoorRow'), dc = $('#wallDoor');
+  const selW = (S.selected && S.selected.type === 'wall') ? getWall(S.selected.id) : null;
+  if (dr) dr.hidden = !selW;
+  if (dc) dc.checked = !!(selW && selW.door);
   const bi = $('#boundsInfo');
   if (bi) {
     const b = S.settings.bounds;
@@ -2072,7 +2168,7 @@ function renderScene() {
     row.textContent = p ? '选中：' + propLabel(p) + ' · 可拖动 · Delete 删除' : '';
   } else if (S.selected && S.selected.type === 'wall') {
     const ww = getWall(S.selected.id);
-    row.textContent = '选中：墙体' + (ww ? ' · 墙厚 ' + (Number(ww.t) || .3) + ' 米' : '') + ' · 可拖动 · Delete 删除';
+    row.textContent = '选中：' + (ww && ww.door ? '门' : '墙体') + (ww ? ' · 墙厚 ' + (Number(ww.t) || .3) + ' 米' : '') + ' · 拖两端可改长度 · Delete 删除';
   } else {
     row.textContent = '';
   }
@@ -3095,6 +3191,59 @@ async function importScene(file) {
   toast('存档已导入');
 }
 
+function exportPack() {
+  const d = new Date(), pad = n => String(n).padStart(2, '0');
+  const scene = Object.assign(sceneSnapshot(), {
+    map: S.map.src ? { src: S.map.src, name: S.map.name || '' } : null
+  });
+  const pack = {
+    app: 'trpg-map', kind: 'pack', v: 1,
+    createdAt: new Date().toISOString(),
+    presets: userPresets(),
+    propBook: (S.propBook || []).map(p => Object.assign({}, p)),
+    scene: scene
+  };
+  const blob = new Blob([JSON.stringify(pack)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.download = '跑团素材包-' + d.getFullYear() + pad(d.getMonth() + 1) + pad(d.getDate()) + '-' + pad(d.getHours()) + pad(d.getMinutes()) + '.json';
+  a.href = URL.createObjectURL(blob);
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 3000);
+  toast('素材包已导出 · 预设 ' + pack.presets.length + ' · 物品 ' + pack.propBook.length);
+}
+
+async function importPack(file) {
+  let d;
+  try { d = JSON.parse(await file.text()); } catch (e) { toast('素材包解析失败'); return; }
+  if (!d || d.app !== 'trpg-map' || d.kind !== 'pack') { toast('这不是跑团地图素材包'); return; }
+
+  let addedP = 0, addedB = 0;
+  const presets = userPresets();
+  const haveP = new Set(presets.map(p => p.id));
+  for (const p of (Array.isArray(d.presets) ? d.presets : [])) {
+    if (!p || !p.id || !p.src || haveP.has(p.id)) continue;
+    if (presets.length >= PRESET_MAX) break;
+    presets.push({ id: p.id, name: p.name || '预设', src: p.src, ppm: p.ppm, ox: p.ox, oy: p.oy, rot: p.rot });
+    haveP.add(p.id); addedP++;
+  }
+  if (addedP) { writeUserPresets(presets); renderPresetButtons(); }
+
+  S.propBook = S.propBook || [];
+  const haveB = new Set(S.propBook.map(p => p.id));
+  for (const p of (Array.isArray(d.propBook) ? d.propBook : [])) {
+    if (!p || !p.id || !p.imgSrc || haveB.has(p.id)) continue;
+    if (S.propBook.length >= 40) break;
+    S.propBook.push(Object.assign({}, p)); haveB.add(p.id); addedB++;
+  }
+  if (addedB) { savePropBook(); renderPropBook(); renderScene(); }
+
+  const hasScene = d.scene && typeof d.scene === 'object';
+  toast('素材包：新增预设 ' + addedP + '、物品 ' + addedB + (hasScene ? '；包里还有场景' : ''));
+  if (hasScene && confirm('素材包里还有一份场景布置（地图/棋子/范围等），要现在载入吗？')) {
+    await importScene(new File([JSON.stringify(d.scene)], 'pack-scene.json', { type: 'application/json' }));
+  }
+}
+
 function clearAll() {
   if (!confirm('清空整个场景？包括底图、棋子和范围。')) return;
   S.tokens = [];
@@ -3188,6 +3337,22 @@ function onDown(e) {
       draw();
       return;
     }
+    // 已选中的墙：先判断是否抓住了端点
+    const selWall = (S.selected && S.selected.type === 'wall') ? getWall(S.selected.id) : null;
+    if (selWall) {
+      const hit = 10 / S.view.scale;
+      for (const end of [1, 2]) {
+        const ex = end === 1 ? selWall.x1 : selWall.x2;
+        const ey = end === 1 ? selWall.y1 : selWall.y2;
+        if (Math.hypot(w.x - ex, w.y - ey) <= hit) {
+          S.drag = { kind: 'wallEnd', id: selWall.id, end: end, base: Object.assign({}, selWall) };
+          if (canvas.setPointerCapture) canvas.setPointerCapture(e.pointerId);
+          canvas.style.cursor = 'crosshair';
+          draw();
+          return;
+        }
+      }
+    }
     const wl = wallAt(w.x, w.y, e.pointerType === 'touch' ? 10 : 0);
     if (wl) {
       select({ type: 'wall', id: wl.id });
@@ -3196,6 +3361,18 @@ function onDown(e) {
       canvas.style.cursor = 'grabbing';
       draw();
       return;
+    }
+    const selArea = (S.selected && S.selected.type === 'area') ? getArea(S.selected.id) : null;
+    if (selArea && selArea.type === 'cone') {
+      const hr = selArea.r * S.grid.ppm * .82;
+      const hx = selArea.x + Math.cos(selArea.angle || 0) * hr;
+      const hy = selArea.y + Math.sin(selArea.angle || 0) * hr;
+      if (Math.hypot(w.x - hx, w.y - hy) <= 12 / S.view.scale) {
+        S.drag = { kind: 'areaRot', id: selArea.id };
+        if (canvas.setPointerCapture) canvas.setPointerCapture(e.pointerId);
+        draw();
+        return;
+      }
     }
     const a = areaAt(w.x, w.y);
     if (a) {
@@ -3272,7 +3449,7 @@ function updateAt(w, alt) {
       }
       const cb = clampToBounds(nx, ny, tokenWorldR(t));
       nx = cb.x; ny = cb.y;
-      if (S.walls.length && (wallAt(nx, ny, 1) || losBlocked(S.drag.ox, S.drag.oy, nx, ny))) {
+      if (S.walls.length && (wallAt(nx, ny, 1, true) || losBlocked(S.drag.ox, S.drag.oy, nx, ny))) {
         S._blockedMove = true;
       } else {
         S._blockedMove = false;
@@ -3280,6 +3457,16 @@ function updateAt(w, alt) {
       }
     }
     return true;
+  }
+  if (S.drag && S.drag.kind === 'areaRot') {
+    const a = getArea(S.drag.id);
+    if (a) { a.angle = Math.atan2(w.y - a.y, w.x - a.x); draw(); }
+    return;
+  }
+  if (S.drag && S.drag.kind === 'wallEnd') {
+    updateWallEnd(S.drag, w, alt);
+    draw();
+    return;
   }
   if (S.drag && (S.drag.kind === 'area' || S.drag.kind === 'wall')) {
     translateShapeDrag(S.drag, w, alt);
@@ -3383,8 +3570,8 @@ function onUp(e, cancelled) {
       if (t) { t.x = S.drag.ox; t.y = S.drag.oy; }
       S._blockedMove = false;
       syncTokenPos(t);
-    } else if (S.drag && (S.drag.kind === 'area' || S.drag.kind === 'wall')) {
-      const item = S.drag.kind === 'wall' ? getWall(S.drag.id) : getArea(S.drag.id);
+    } else if (S.drag && (S.drag.kind === 'area' || S.drag.kind === 'wall' || S.drag.kind === 'wallEnd')) {
+      const item = (S.drag.kind === 'wallEnd' || S.drag.kind === 'wall') ? getWall(S.drag.id) : getArea(S.drag.id);
       if (item && S.drag.base) Object.assign(item, S.drag.base);
     } else if (S.drag && S.drag.kind === 'prop') {
       const item = getProp(S.drag.id);
@@ -3433,6 +3620,19 @@ function onUp(e, cancelled) {
     syncGridInputs();
     canvas.style.cursor = S.tool === 'grid' ? 'move' : 'default';
     draw();
+    return;
+  }
+  if (S.drag && S.drag.kind === 'areaRot') {
+    autosave(); pushHistory(); S.drag = null; renderAreas(); draw();
+    canvas.style.cursor = 'default';
+    return;
+  }
+  if (S.drag && S.drag.kind === 'wallEnd') {
+    autosave();
+    if (S.drag.moved) pushHistory();
+    S.drag = null;
+    renderPanel(); draw();
+    canvas.style.cursor = 'default';
     return;
   }
   if (S.drag && (S.drag.kind === 'prop' || S.drag.kind === 'wall')) {
@@ -4118,6 +4318,14 @@ function bindUI() {
     S.settings.initLock = initLock.checked;
     autosave(); netPublish(); toast(initLock.checked ? '已开启：按先攻锁定玩家行动' : '已关闭：玩家可自由移动');
   });
+  const wallDoor = $('#wallDoor');
+  if (wallDoor) wallDoor.addEventListener('change', () => {
+    const w = (S.selected && S.selected.type === 'wall') ? getWall(S.selected.id) : null;
+    if (!w) return;
+    w.door = wallDoor.checked;
+    draw(); autosave(); pushHistory(); renderScene();
+    toast(w.door ? '已设为门：可通行、不挡视线' : '已改回墙');
+  });
   const wallThick = $('#wallThick');
   if (wallThick) wallThick.addEventListener('change', () => {
     let v = parseFloat(wallThick.value);
@@ -4344,11 +4552,43 @@ function bindUI() {
   });
 
   $('#btnExport').addEventListener('click', exportScene);
+  $('#btnPackOut').addEventListener('click', exportPack);
+  $('#btnPackIn').addEventListener('click', () => $('#packFile').click());
+  $('#packFile').addEventListener('change', e => {
+    const f = e.target.files && e.target.files[0];
+    if (f) importPack(f);
+    e.target.value = '';
+  });
   $('#btnImportScene').addEventListener('click', () => $('#sceneFile').click());
   $('#sceneFile').addEventListener('change', e => {
     const f = e.target.files && e.target.files[0];
     if (f) importScene(f);
     e.target.value = '';
+  });
+  const areaRot = $('#areaRot');
+  if (areaRot) areaRot.addEventListener('change', () => {
+    const a = (S.selected && S.selected.type === 'area') ? getArea(S.selected.id) : null;
+    if (!a || a.type !== 'cone') return;
+    let deg = parseFloat(areaRot.value);
+    if (!isFinite(deg)) deg = 0;
+    deg = clamp(deg, -180, 180);
+    a.angle = deg * Math.PI / 180;
+    draw(); autosave(); pushHistory(); renderAreas(); netPublish();
+  });
+  const areaFollow = $('#areaFollow');
+  if (areaFollow) areaFollow.addEventListener('change', () => {
+    const a = (S.selected && S.selected.type === 'area') ? getArea(S.selected.id) : null;
+    if (!a) return;
+    const id = areaFollow.value;
+    if (!id) { delete a.follow; delete a.followOff; }
+    else {
+      const t = getToken(id);
+      if (!t) return;
+      a.follow = id;
+      if (a.type === 'line') a.followOff = { dx: a.x1 - t.x, dy: a.y1 - t.y };
+      else { a.x = t.x; a.y = t.y; delete a.followOff; }
+    }
+    syncFollowAreas(); draw(); autosave(); pushHistory(); renderAreas(); netPublish();
   });
   $('#btnClear').addEventListener('click', clearAll);
 
@@ -4581,7 +4821,7 @@ function init() {
 }
 
 window.__TRPG = S;
-window.__TRPG_API = { tokensInArea, hitNames, undo, redo, pushHistory, gridCellForImage, renderPanel, visionPolygon, wallSegs, raySegT, netPublish, netFullFor, netState,
+window.__TRPG_API = { tokensInArea, hitNames, undo, redo, pushHistory, gridCellForImage, renderPanel, visionPolygon, wallSegs, raySegT, losBlocked, wallAt, netPublish, netFullFor, netState,
   netDrop: () => { NET.suppressClose = false; if (NET.ws) NET.ws.close(); },
   netSession: () => netLoadSession() };
 init();
