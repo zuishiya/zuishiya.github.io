@@ -4,7 +4,7 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 <meta name="author" content="醉食 QQ 2180586028" />
-<meta name="version" content="0.3u" />
+<meta name="version" content="0.3v" />
 <title>跑团战术地图</title>
 <style>
 [hidden]{display:none!important}
@@ -1621,13 +1621,14 @@ function drawFog() {
   }
   if (S.fog.auto) {
     const R = Math.max(1, S.fog.vision || 10) * S.grid.ppm;
-    let fogSrc = S.tokens;
+    let fogSrc = S.tokens, me = null;
     if (S.net.role === 'player') {
-      const me = S.tokens.find(t => t.id === S.net.tokenId);
+      me = S.tokens.find(t => t.id === S.net.tokenId) || S.tokens.find(t => t.owner === S.net.pid);
       fogSrc = S.tokens.filter(t => t === me || (me && me.team && t.team === me.team && !t.hidden));
     }
     for (const t of fogSrc) {
-      if (t.sight === false) continue;
+      const own = S.net.role === 'player' && me && t.id === me.id;
+      if (t.sight === false && !own) continue;
       const c = w2s(t.x, t.y);
       const rS = R * S.view.scale;
       if (rS < 2) continue;
