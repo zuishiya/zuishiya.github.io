@@ -421,7 +421,7 @@ body.player #panel .tk-row,body.player #panel .init-row{pointer-events:none}
 
       <section class="sec" data-sec="tokens">
         <div class="sec-head"><h3>棋子<em class="count" id="tokenCount">0</em></h3><button id="btnTokensFloat" class="mini" title="把棋子列表单独拉出来">⇱</button><button id="btnAddToken" class="mini">＋ 添加</button></div>
-        <div class="row" style="margin-top:4px"><span class="lbl">小队</span><input id="teamQuickName" class="grow" maxlength="20" list="teamQuickList" placeholder="输入队名，给选中棋子编组"><button id="btnTeamQuick" class="mini">编组</button></div>
+        <div class="row" id="teamQuickRow" style="margin-top:4px"><span class="lbl">小队</span><input id="teamQuickName" class="grow" maxlength="20" list="teamQuickList" placeholder="输入队名，给选中棋子编组"><button id="btnTeamQuick" class="mini">编组</button></div>
         <datalist id="teamQuickList"></datalist>
         <div id="editor"></div>
         <div class="list" id="tokenList"></div>
@@ -549,7 +549,7 @@ body.player #panel .tk-row,body.player #panel .init-row{pointer-events:none}
       <li>选中棋子后可填 <b>HP 当前/上限</b> 和状态（正常/受伤/倒地/死亡/中毒）：棋子上会显示血条和状态角标；玩家改自己的 HP 会同步给主持人</li>
       <li><b>Shift+点击</b>棋子可多选：整组一起拖动，<b>Delete</b> 删除整组；再 Shift 点一次取消某个</li>
       <li>选中棋子在「小队」填同一个队名（或面板上方「小队」输入框 + 编组）：同队玩家<b>共享视野</b>；范围区「填充」滑杆调颜色浓度</li>
-      <li>顶部 <b>⚙</b> 打开设置：网格显示、自动适配、战争迷雾、先攻锁、默认加入身份（玩家/观众）、AOE 判定、范围填充、导入导出、清空本机缓存</li>
+      <li>顶部 <b>⚙</b> 打开设置：网格显示、自动适配、战争迷雾、先攻锁、默认加入身份（玩家/观众）、范围判定、范围填充、导入导出、清空本机缓存</li>
       <li>棋子、先攻标题右边的 <b>⇱</b> 可把列表拉成浮窗放在地图旁边；拖动标题移动，点 × 收回原位</li>
       <li>联机时主持人点顶部「成员」打开玩家列表：看在线/离线、给玩家绑定棋子、移出房间；玩家加入时可选择「观众」，观众看全图、也能自己画出本机测量</li>
       <li>先攻区会显示「当前行动」并给棋子套金色圈；点先攻行的 ▶ 可切换行动者，「结束回合」轮到下一位；锁定开启时玩家只能动自己的且轮到时才能改 HP</li>
@@ -562,7 +562,7 @@ body.player #panel .tk-row,body.player #panel .init-row{pointer-events:none}
       <li>半径、张角都是自由输入，没有固定档位：半径 0.5–5000 米、张角 1–360°；拖拽时以松手距离/方向为准，面板数值用于单击放置</li>
       <li>其它可自定义上限：视野 0.5–1000 米、揭雾笔刷 0.5–200 米、墙厚 0.05–20 米、棋子体型 0.1–100 格、移动步长 0.1–9999 米；超出会在失焦时自动收回到上限</li>
       <li>选中棋子后可直接按方向键按「步长」移动；地图旋转后方向键仍按屏幕方向走（上就是屏幕上）</li>
-      <li>选中棋子后点「以选中棋子为圆心画圆」＝ 20 米射击圈；再点圆形工具在圈内点一下就是 5 米 AOE</li>
+      <li>选中棋子后点「以选中棋子为圆心画圆」＝ 20 米射击圈；再点圆形工具在圈内点一下就是 5 米范围</li>
       <li>「测距」拖拽时起点、终点落在棋子上会自动对齐棋子圆心，量棋子到棋子的距离很方便</li>
       <li>选中一个范围，面板会列出范围内的棋子（橙色虚线圈高亮；默认按棋子中心，可在范围区或设置里改「边缘接触也算」）；刚画完也会提示命中了谁</li>
       <li><kbd>Ctrl</kbd>+<kbd>Z</kbd> 撤销 · <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Z</kbd> 重做（增删棋子、移动、画范围、先攻调整都能回退）</li>
@@ -618,7 +618,7 @@ body.player #panel .tk-row,body.player #panel .init-row{pointer-events:none}
       <label class="check"><input type="checkbox" id="setInitLock"> 按先攻锁定玩家行动</label>
       <label class="check"><input type="checkbox" id="setAutoFit"> 视图自动适配窗口</label>
       <div class="row"><span class="lbl">默认加入</span><select id="setJoinAs" class="grow"><option value="player">玩家</option><option value="audience">观众</option></select></div>
-      <div class="row"><span class="lbl">AOE 判定</span><select id="setAoeMode" class="grow"><option value="center">按棋子中心</option><option value="edge">边缘接触也算</option></select></div>
+      <div class="row"><span class="lbl">范围判定</span><select id="setAoeMode" class="grow"><option value="center">按棋子中心</option><option value="edge">边缘接触也算</option></select></div>
       <div class="row"><span class="lbl">范围填充</span><input id="setFill" type="range" min="0" max="40" step="1" class="grow"><span class="lbl tag" id="setFillVal">11%</span></div>
     </div>
     <div class="row" style="margin-top:14px"><button id="setExport" class="grow">导出存档</button><button id="setImport" class="grow">导入存档</button></div>
@@ -4845,6 +4845,7 @@ function netApplyRole() {
   if (btn) {
     btn.classList.toggle('on', S.net.connected);
     btn.textContent = S.net.role === 'gm' ? '联机·主持' : (player ? (S.net.audience ? '联机·观众' : '联机·玩家') : '联机');
+  const tq = $('#teamQuickRow'); if (tq) tq.hidden = (S.net.role === 'player' || S.net.role === 'audience');
   }
   if (player) {
     if (S.tool !== 'select') setTool('select');
@@ -4896,6 +4897,8 @@ function renderSettings() {
   map.forEach(([id, v]) => { const el = $('#' + id); if (el) el.checked = !!v; });
   const ja = $('#setJoinAs'); if (ja) ja.value = S.settings.joinAs || 'player';
   const am = $('#setAoeMode'); if (am) am.value = S.settings.aoeMode || 'center';
+  const host = !(S.net.role === 'player' || S.net.role === 'audience');
+  ['setFogOn', 'setInitLock', 'setAoeMode', 'setFill'].forEach(id => { const el = $('#' + id); if (el) el.disabled = !host; });
   const fl = $('#setFill'); if (fl) fl.value = S.settings.areaFill == null ? 11 : S.settings.areaFill;
   const fv = $('#setFillVal'); if (fv) fv.textContent = (S.settings.areaFill == null ? 11 : S.settings.areaFill) + '%';
 }
