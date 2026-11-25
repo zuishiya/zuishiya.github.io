@@ -4,7 +4,7 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 <meta name="author" content="醉食 QQ 2180586028" />
-<meta name="version" content="0.3e" />
+<meta name="version" content="0.3f" />
 <title>跑团战术地图</title>
 <style>
 :root{
@@ -516,7 +516,7 @@ body.player #panel .tk-row,body.player #panel .init-row{pointer-events:none}
       <li><kbd>V</kbd> 选择 · <kbd>T</kbd> 棋子 · <kbd>C</kbd> 圆 · <kbd>F</kbd> 扇形 · <kbd>M</kbd> 测距 · <kbd>G</kbd> 网格</li>
       <li><kbd>Delete</kbd> 删除选中 · <kbd>Esc</kbd> 取消 / 回到选择</li>
     </ul>
-    <div class="modal-foot"><span class="credit">作者：<b>醉食</b> · QQ 2180586028 · v0.3e</span><span style="flex:1"></span><button id="modalTour" class="ghost">新手教程</button><button id="modalClose">知道了</button></div>
+    <div class="modal-foot"><span class="credit">作者：<b>醉食</b> · QQ 2180586028 · v0.3f</span><span style="flex:1"></span><button id="modalTour" class="ghost">新手教程</button><button id="modalClose">知道了</button></div>
   </div>
 </div>
 
@@ -550,7 +550,7 @@ const TOUR_STEPS = [
   { t: '6 · 迷雾、先攻',
     b: '「迷雾」里启用后，玩家只看到自己棋子的视野；<b>主持人始终看全场</b>。墙会挡视野，也可以「手动揭雾」涂开。<br>「先攻」把棋子加进列表，改先攻值自动排序；「下一回合」高亮下一位。联机时可开「按先攻锁定玩家行动」。' },
   { t: '7 · 联机与存档',
-    b: '右上「联机」：主持人「开房间」得到 4 位码；玩家打开同一网址、输码加入，只动自己的棋子，测距/圆/扇形只在本机显示。<br>「导出存档」存棋子、范围、先攻、摆件和图片；<b>底图不进自动存档</b>，重开页面要重新导入一次。' }
+    b: '右上「联机」：主持人「开房间」得到 4 位码；玩家打开同一网址、输码加入，只动自己的棋子，测距/圆/扇形只在本机显示。<br>「导出存档」存棋子、范围、先攻、摆件和图片；<b>底图、头像、摆件图片会存进浏览器</b>（IndexedDB），重开页面自动恢复；换设备或清缓存才需要重新导入。' }
 ];
 let tourIdx = 0;
 
@@ -995,7 +995,8 @@ function loadPropBook() {
   catch (e) { return []; }
 }
 function savePropBook() {
-  try { localStorage.setItem('trpg-map.propbook.v1', JSON.stringify((S.propBook || []).slice(0, 40))); } catch (e) {}
+  try { localStorage.setItem('trpg-map.propbook.v1', JSON.stringify((S.propBook || []).slice(0, 40).map(p => ({ id: p.id, name: p.name })))); } catch (e) {}
+  saveBookAsset();
 }
 function propLabel(p) {
   if (!p) return '摆件';
@@ -2480,6 +2481,7 @@ async function importMap(file) {
     fitView();
     const aligned = alignGridToImage(true);
     toast('底图已导入 · ' + img.width + '×' + img.height + ' · 已自动适配' + (aligned ? ' · 已按图片对齐格子' : ''));
+    autosave(); saveMapAsset();
     if (S.net.role === 'gm') netFullFor('');
   } catch (err) {
     toast('图片读取失败');
@@ -2492,6 +2494,7 @@ function removeMap() {
   renderMapInfo();
   updateEmpty();
   draw();
+  autosave(); saveMapAsset();
   if (S.net.role === 'gm') netFullFor('');
 }
 
@@ -2852,6 +2855,7 @@ async function applyPreset(kind) {
     renderMapInfo();
     updateEmpty();
     fitView();
+    autosave(); saveMapAsset();
     toast('已铺预设底图 · ' + name);
     if (S.net.role === 'gm') netFullFor('');
   } catch (e) {
@@ -2885,17 +2889,68 @@ async function assignAvatar(t, file) {
   }
 }
 
+
+/* ---------------- IndexedDB（大照片/底图持久化） ---------------- */
+let _idbPromise = null, _idbBroken = false;
+function idbOpen() {
+  if (_idbBroken) return Promise.reject(new Error('idb unavailable'));
+  if (_idbPromise) return _idbPromise;
+  _idbPromise = new Promise((resolve, reject) => {
+    let req;
+    try { req = indexedDB.open('trpg-map', 1); } catch (e) { reject(e); return; }
+    req.onupgradeneeded = () => {
+      const db = req.result;
+      if (!db.objectStoreNames.contains('kv')) db.createObjectStore('kv');
+    };
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error || new Error('idb open failed'));
+  }).catch(err => { _idbBroken = true; throw err; });
+  return _idbPromise;
+}
+async function idbSet(key, val) {
+  const db = await idbOpen();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction('kv', 'readwrite');
+    tx.objectStore('kv').put(val, key);
+    tx.oncomplete = () => resolve(true);
+    tx.onerror = () => reject(tx.error || new Error('idb write failed'));
+  });
+}
+async function idbGet(key) {
+  const db = await idbOpen();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction('kv', 'readonly');
+    const req = tx.objectStore('kv').get(key);
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error || new Error('idb read failed'));
+  });
+}
+async function saveMapAsset() {
+  try { await idbSet('map', S.map.src ? { src: S.map.src, name: S.map.name || '' } : null); } catch (e) {}
+}
+async function saveBookAsset() {
+  try { await idbSet('book', S.propBook || []); } catch (e) {}
+}
+
 /* ---------------- 存档 ---------------- */
+function sceneSnapshot() {
+  return {
+    grid: S.grid, tokens: S.tokens, areas: S.areas, props: S.props, walls: S.walls,
+    fog: S.fog, init: S.init, ui: { collapsed: S.ui.collapsed }, wallT: S.wallT,
+    settings: S.settings,
+    rot: Math.round(((S.view.rot || 0) * 180 / Math.PI) * 100) / 100,
+  };
+}
 function autosave() {
   clearTimeout(autosave.t);
   autosave.t = setTimeout(() => {
+    const data = sceneSnapshot();
+    idbSet('scene', data).catch(() => {});
     try {
-      localStorage.setItem(KEY, JSON.stringify({
-        grid: S.grid, tokens: S.tokens, areas: S.areas, props: S.props, walls: S.walls,
-        fog: S.fog, init: S.init, ui: { collapsed: S.ui.collapsed }, wallT: S.wallT,
-        settings: S.settings,
-        rot: Math.round(((S.view.rot || 0) * 180 / Math.PI) * 100) / 100,
-      }));
+      const lite = JSON.parse(JSON.stringify(data));
+      lite.tokens = (lite.tokens || []).map(t => { const c = Object.assign({}, t); delete c.imgSrc; return c; });
+      lite.props = (lite.props || []).map(x => { const c = Object.assign({}, x); delete c.imgSrc; return c; });
+      localStorage.setItem(KEY, JSON.stringify(lite));
     } catch (e) { /* quota / file:// 限制，忽略 */ }
     if (S.net && S.net.role === 'gm') netPublish();
   }, 400);
@@ -2903,10 +2958,11 @@ function autosave() {
 
 function loadAutosave() {
   let raw = null;
-  try { raw = localStorage.getItem(KEY); } catch (e) { return; }
-  if (!raw) return;
+  try { raw = localStorage.getItem(KEY); } catch (e) { hydrateAssets(); return; }
+  if (!raw) { hydrateAssets(); return; }
+  let d = null;
+  try { d = JSON.parse(raw); } catch (e) { hydrateAssets(); return; }
   try {
-    const d = JSON.parse(raw);
     if (d && d.grid) mergeGrid(d.grid);
     if (d && Array.isArray(d.tokens)) S.tokens = d.tokens.filter(t => t && t.id).map(t => Object.assign({}, t));
     if (d && Array.isArray(d.areas)) S.areas = d.areas.filter(a => a && a.id).map(a => Object.assign({}, a));
@@ -2930,6 +2986,37 @@ function loadAutosave() {
     syncRotInput();
     if (S.tokens.length || S.areas.length || S.init.list.length) setTimeout(() => toast('已恢复上次的棋子、范围与先攻；底图需要重新导入'), 600);
   } catch (e) { /* 坏档忽略 */ }
+  hydrateAssets();
+}
+
+async function hydrateAssets() {
+  try {
+    const mapAsset = await idbGet('map');
+    if (mapAsset && mapAsset.src && !S.map.src) {
+      try {
+        S.map = { img: await loadImage(mapAsset.src), src: mapAsset.src, name: mapAsset.name || '' };
+        if (!S.settings.bounds) setMapBounds(S.map.img, true);
+        renderMapInfo(); updateEmpty(); fitView(); draw();
+        toast('已恢复上次场景（含底图）');
+      } catch (e) {}
+    }
+    const book = await idbGet('book');
+    if (Array.isArray(book) && book.length) {
+      const ids = new Set((S.propBook || []).map(x => x.id));
+      book.forEach(x => { if (x && x.id && x.imgSrc && !ids.has(x.id)) S.propBook.push(x); });
+      renderPropBook();
+    }
+    const full = await idbGet('scene');
+    if (full) {
+      const tm = {};
+      (full.tokens || []).forEach(t => { if (t && t.id) tm[t.id] = t; });
+      S.tokens.forEach(t => { if (!t.imgSrc && tm[t.id] && tm[t.id].imgSrc) t.imgSrc = tm[t.id].imgSrc; });
+      const pm = {};
+      (full.props || []).forEach(x => { if (x && x.id) pm[x.id] = x; });
+      S.props.forEach(x => { if (!x.imgSrc && pm[x.id] && pm[x.id].imgSrc) x.imgSrc = pm[x.id].imgSrc; });
+      renderTokens(); draw();
+    }
+  } catch (e) {}
 }
 
 function exportScene() {
@@ -3003,7 +3090,7 @@ async function importScene(file) {
   syncRotInput();
   renderPanel();
   if (S.map.img) fitView(); else fitContent();
-  autosave();
+  autosave(); saveMapAsset();
   pushHistory();
   toast('存档已导入');
 }
@@ -3026,7 +3113,7 @@ function clearAll() {
   S._editorKey = '';
   renderPanel();
   draw();
-  autosave();
+  autosave(); saveMapAsset();
   pushHistory();
   toast('场景已清空');
 }
@@ -3584,7 +3671,7 @@ async function applyUserPreset(id) {
     if (typeof p.rotDeg === 'number') S.view.rot = p.rotDeg * Math.PI / 180;
     syncGridInputs(); syncRotInput();
     renderMapInfo(); updateEmpty(); fitView();
-    autosave();
+    autosave(); saveMapAsset();
     if (S.net.role === 'gm') netFullFor('');
     toast('已切换预设 · ' + p.name);
   } catch (e) { toast('预设加载失败'); }
