@@ -4,7 +4,7 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 <meta name="author" content="醉食 QQ 2180586028" />
-<meta name="version" content="0.3l" />
+<meta name="version" content="0.3m" />
 <title>跑团战术地图</title>
 <style>
 :root{
@@ -481,6 +481,7 @@ body.player #panel .tk-row,body.player #panel .init-row{pointer-events:none}
       <li>把地图图片拖进窗口，或点「导入底图」；会自动适配视野，并把网格从图片左上角起算、整格铺满图片（边缘落在格线上）。想改格距就手动调「每米像素」，或点「按图片对齐格子」重来</li>
       <li>点工具栏「棋子」再点地图放置；双击空白处也能快速加</li>
       <li>棋子列表里点一行选中，点 <b>◎</b> 把镜头移过去，双击行也一样；<b>×</b> 删除，选中后还能「复制」同款</li>
+      <li>选中棋子后可填 <b>HP 当前/上限</b> 和状态（正常/受伤/倒地/死亡/中毒）：棋子上会显示血条和状态角标；玩家改自己的 HP 会同步给主持人</li>
       <li>选择工具下直接拖动棋子；按住 <kbd>Alt</kbd> 拖动可临时不吸附网格</li>
       <li>选中棋子后在右侧上传头像，或把图片直接拖到棋子上</li>
       <li>对齐地图格子：把「格子像素」调成地图一格的像素（或用 −/＋ 微调、或「按图片对齐」），点「拖动网格对齐」在地图上拖，网格线跟着走；方向键微调 1px（Shift 10px），Shift+滚轮改格距</li>
@@ -524,7 +525,7 @@ body.player #panel .tk-row,body.player #panel .init-row{pointer-events:none}
       <li><kbd>V</kbd> 选择 · <kbd>T</kbd> 棋子 · <kbd>C</kbd> 圆 · <kbd>F</kbd> 扇形 · <kbd>M</kbd> 测距 · <kbd>G</kbd> 网格</li>
       <li><kbd>Delete</kbd> 删除选中 · <kbd>Esc</kbd> 取消 / 回到选择</li>
     </ul>
-    <div class="modal-foot"><span class="credit">作者：<b>醉食</b> · QQ 2180586028 · v0.3l</span><span style="flex:1"></span><button id="modalTour" class="ghost">新手教程</button><button id="modalClose">知道了</button></div>
+    <div class="modal-foot"><span class="credit">作者：<b>醉食</b> · QQ 2180586028 · v0.3m</span><span style="flex:1"></span><button id="modalTour" class="ghost">新手教程</button><button id="modalClose">知道了</button></div>
   </div>
 </div>
 
@@ -1429,7 +1430,42 @@ function drawToken(t, selected) {
     ctx.strokeStyle = 'rgba(255,255,255,.38)'; ctx.lineWidth = 1.5; ctx.stroke();
   }
 
-  if (r >= 5) tag(t.name || '未命名', p.x, p.y + r + 15, '#e9f1ff');
+  const st = t.status || 'ok';
+  if (st === 'dead') {
+    ctx.beginPath(); ctx.arc(p.x, p.y, r, 0, TAU);
+    ctx.fillStyle = 'rgba(10,12,16,.62)'; ctx.fill();
+    ctx.strokeStyle = 'rgba(255,120,120,.9)'; ctx.lineWidth = Math.max(1.5, r * .08);
+    const d = r * .42;
+    ctx.beginPath(); ctx.moveTo(p.x - d, p.y - d); ctx.lineTo(p.x + d, p.y + d);
+    ctx.moveTo(p.x + d, p.y - d); ctx.lineTo(p.x - d, p.y + d); ctx.stroke();
+  } else if (st === 'down') {
+    ctx.beginPath(); ctx.arc(p.x, p.y, r, 0, TAU);
+    ctx.fillStyle = 'rgba(120,20,20,.38)'; ctx.fill();
+  }
+  if (st !== 'ok') {
+    const meta = ({ down: ['倒', '#e0603c'], dead: ['死', '#b23535'], hurt: ['伤', '#d98324'], poison: ['毒', '#6fae3f'] })[st] || ['?', '#888'];
+    const br = Math.max(5, r * .32), bx = p.x + r * .72, by = p.y - r * .72;
+    ctx.beginPath(); ctx.arc(bx, by, br, 0, TAU);
+    ctx.fillStyle = meta[1]; ctx.fill();
+    ctx.strokeStyle = 'rgba(8,12,18,.9)'; ctx.lineWidth = 1.2; ctx.stroke();
+    ctx.fillStyle = '#fff'; ctx.font = '700 ' + Math.max(7, br * 1.05) + 'px ' + FONT;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(meta[0], bx, by + .5);
+  }
+  const hpMax = Number(t.hpMax) || 0, hp = Math.max(0, Math.min(hpMax, Number(t.hp) || 0));
+  let tagY = p.y + r + 15;
+  if (hpMax > 0) {
+    const bw = Math.max(18, r * 1.7), bh = Math.max(3, r * .15), by2 = p.y + r + 5;
+    ctx.fillStyle = 'rgba(0,0,0,.66)';
+    ctx.fillRect(p.x - bw / 2 - 1, by2 - 1, bw + 2, bh + 2);
+    const pct = hp / hpMax;
+    ctx.fillStyle = pct > .5 ? '#5fd18a' : (pct > .25 ? '#e0b64a' : '#e0603c');
+    ctx.fillRect(p.x - bw / 2, by2, bw * pct, bh);
+    ctx.strokeStyle = 'rgba(255,255,255,.25)'; ctx.lineWidth = 1;
+    ctx.strokeRect(p.x - bw / 2, by2, bw, bh);
+    tagY = by2 + bh + 13;
+  }
+  if (r >= 5) tag(t.name || '未命名', p.x, tagY, '#e9f1ff');
   ctx.restore();
 }
 
@@ -1782,6 +1818,9 @@ function addToken(wx, wy, opts) {
     color: opts.color || PALETTE[S.tokens.length % PALETTE.length],
     imgSrc: opts.imgSrc || '',
     size: opts.size || 1,
+    hp: Number(opts.hp) || 0,
+    hpMax: Number(opts.hpMax) || 0,
+    status: opts.status || 'ok',
   };
   S.tokens.push(t);
   S.selected = { type: 'token', id: t.id };
@@ -2252,10 +2291,33 @@ function applyCollapsed() {
   });
 }
 
+function statusOptions(v) {
+  const opts = [['ok', '正常'], ['hurt', '受伤'], ['down', '倒地'], ['dead', '死亡'], ['poison', '中毒']];
+  return opts.map(([k, label]) => '<option value="' + k + '"' + ((v || 'ok') === k ? ' selected' : '') + '>' + label + '</option>').join('');
+}
+function bindVitals(t) {
+  const hp = $('#tkHp'), hpm = $('#tkHpMax'), st = $('#tkStatus');
+  if (!hp || !hpm || !st) return;
+  function apply() {
+    let m = Number(hpm.value), h = Number(hp.value);
+    if (!isFinite(m)) m = 0; if (!isFinite(h)) h = 0;
+    m = clamp(Math.round(m), 0, 9999); h = clamp(Math.round(h), 0, m);
+    hp.value = h; hpm.value = m;
+    t.hp = h; t.hpMax = m; t.status = st.value;
+    renderTokens(); draw(); autosave(); pushHistory();
+    if (S.net.role === 'player') netSend('vitals', { id: t.id, hp: t.hp, hpMax: t.hpMax, status: t.status });
+  }
+  hp.addEventListener('change', apply);
+  hpm.addEventListener('change', apply);
+  st.addEventListener('change', apply);
+}
+
 function buildPlayerEditor(box, t) {
   box.innerHTML =
     '<div class="row"><span class="lbl">名字</span><input id="tkName" class="grow" maxlength="24" value="' + esc(t.name || '') + '"></div>' +
     '<div class="row"><button id="tkAva" class="grow">上传头像</button></div>' +
+    '<div class="row"><span class="lbl">HP</span><input id="tkHp" type="number" min="0" max="9999" step="1" class="grow" value="' + (Number(t.hp) || 0) + '"><span>/</span><input id="tkHpMax" type="number" min="0" max="9999" step="1" class="grow" value="' + (Number(t.hpMax) || 0) + '"></div>' +
+    '<div class="row"><span class="lbl">状态</span><select id="tkStatus" class="grow">' + statusOptions(t.status) + '</select></div>' +
     '<div class="row"><span class="lbl">坐标</span><input id="tkX" type="number" step="0.5" class="grow" value="' + (t.x / S.grid.ppm).toFixed(1) + '"><span class="lbl">/</span><input id="tkY" type="number" step="0.5" class="grow" value="' + (t.y / S.grid.ppm).toFixed(1) + '"><span class="lbl">米</span></div>' +
     '<div class="row"><span class="lbl">步长</span><input id="tkStep" type="number" step="0.5" min="0.1" max="9999" style="width:64px" value="' + S.grid.meters + '"><span>米</span><button id="tkStepReset" class="mini">1 格</button></div>' +
     '<div class="dpad" id="tkPad">' +
@@ -2270,6 +2332,7 @@ function buildPlayerEditor(box, t) {
   $('#tkName').addEventListener('change', () => { netSend('profile', { name: t.name }); pushHistory(); });
   $('#tkAva').addEventListener('click', () => { avatarTarget = t.id; $('#avatarFile').click(); });
   $('#btnLocalClear').addEventListener('click', () => { S.localAreas = []; draw(); toast('本机测量已清空'); });
+  bindVitals(t);
 
   function applyCoords() {
     if (!canActWithToken(t)) { toast('还没轮到你行动'); syncTokenPos(t); return; }
@@ -2322,6 +2385,8 @@ function buildEditor() {
     '<input id="tkSize" type="number" min="0.1" max="100" step="0.5" class="grow" value="' + (Number(t.size) || 1) + '"><span class="lbl">格</span></div>' +
     '<label class="check"><input type="checkbox" id="tkSight"' + (t.sight !== false ? ' checked' : '') + '> 提供视野（迷雾下照亮周围）</label>' +
     '<label class="check"><input type="checkbox" id="tkHidden"' + (t.hidden ? ' checked' : '') + '> 对玩家隐藏</label>' +
+    '<div class="row"><span class="lbl">HP</span><input id="tkHp" type="number" min="0" max="9999" step="1" class="grow" value="' + (Number(t.hp) || 0) + '"><span>/</span><input id="tkHpMax" type="number" min="0" max="9999" step="1" class="grow" value="' + (Number(t.hpMax) || 0) + '"></div>' +
+    '<div class="row"><span class="lbl">状态</span><select id="tkStatus" class="grow">' + statusOptions(t.status) + '</select></div>' +
     '<div class="row"><span class="lbl">坐标</span><input id="tkX" type="number" step="0.5" class="grow" value="' + (t.x / S.grid.ppm).toFixed(1) + '"><span class="lbl">/</span><input id="tkY" type="number" step="0.5" class="grow" value="' + (t.y / S.grid.ppm).toFixed(1) + '"><span class="lbl">米</span></div>' +
     '<div class="row"><span class="lbl">步长</span><input id="tkStep" type="number" step="0.5" min="0.1" max="9999" style="width:64px" value="' + S.grid.meters + '"><span>米</span><button id="tkStepReset" class="mini" title="步长 = 当前一格">1 格</button></div>' +
     '<div class="dpad" id="tkPad">' +
@@ -2337,6 +2402,7 @@ function buildEditor() {
   $('#tkColor').addEventListener('change', pushHistory);
   $('#tkSight').addEventListener('change', e => { t.sight = e.target.checked; draw(); autosave(); pushHistory(); });
   $('#tkHidden').addEventListener('change', e => { t.hidden = e.target.checked; renderTokens(); draw(); autosave(); pushHistory(); });
+  bindVitals(t);
   $('#tkSize').addEventListener('change', e => {
     let v = parseFloat(e.target.value);
     if (!isFinite(v)) v = 1;
@@ -4217,6 +4283,15 @@ function netReceive(msg) {
         if (e) e.name = t.name;
         renderTokens(); renderInit(); draw(); autosave();
       }
+    } else if (msg.t === 'vitals') {
+      const t = getToken(msg.id);
+      if (!t || t.owner !== msg.from) return;
+      let m = Number(msg.hpMax), h = Number(msg.hp);
+      if (!isFinite(m)) m = 0; if (!isFinite(h)) h = 0;
+      m = clamp(Math.round(m), 0, 9999); h = clamp(Math.round(h), 0, m);
+      t.hp = h; t.hpMax = m;
+      if (['ok', 'hurt', 'down', 'dead', 'poison'].includes(msg.status)) t.status = msg.status;
+      renderPanel(); draw(); autosave();
     } else if (msg.t === 'bye') {
       NET.players.delete(msg.from);
       const t = S.tokens.find(x => x.owner === msg.from);
