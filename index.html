@@ -4,7 +4,7 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 <meta name="author" content="醉食 QQ 2180586028" />
-<meta name="version" content="0.3w" />
+<meta name="version" content="0.3x" />
 <title>跑团战术地图</title>
 <style>
 [hidden]{display:none!important}
@@ -323,6 +323,7 @@ body.player #panel .tk-row,body.player #panel .init-row{pointer-events:none}
 .fp-row .who{flex:1;min-width:0}
 .fp-row .who b{display:block;font-size:12.5px;color:#e6eefc;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .fp-row .who i{display:block;font-style:normal;font-size:11px;color:#7d8ca6;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fp-row .bind-sel{max-width:92px;font-size:11px;padding:3px 4px;border-radius:6px;background:#0e1523;border:1px solid var(--line);color:var(--text)}
 .fp-row .kick{border:1px solid #6b2b33;background:#2a151a;color:#ff9aa8;border-radius:7px;font-size:11px;padding:3px 7px;cursor:pointer}
 .fp-row .badge{font-size:10px;padding:1px 5px;border-radius:5px;background:#1d2a3f;color:#9fc1ff}
 .set-grid{display:flex;flex-direction:column;gap:8px}
@@ -561,12 +562,12 @@ body.player #panel .tk-row,body.player #panel .init-row{pointer-events:none}
       <li>选圆形 / 扇形工具后在地图上拖拽；直接单击则用面板里设定的半径；按下处吸附圆心、松手处吸附棋子，从甲拖到乙半径 / 射程就是两棋子间距</li>
       <li>半径、张角都是自由输入，没有固定档位：半径 0.5–5000 米、张角 1–360°；拖拽时以松手距离/方向为准，面板数值用于单击放置</li>
       <li>其它可自定义上限：视野 0.5–1000 米、揭雾笔刷 0.5–200 米、墙厚 0.05–20 米、棋子体型 0.1–100 格、移动步长 0.1–9999 米；超出会在失焦时自动收回到上限</li>
-      <li>选中棋子后可直接按方向键按「步长」移动；地图旋转后方向键仍按屏幕方向走（上就是屏幕上）</li>
+      <li>选中棋子后可直接按方向键按「步长」移动；地图旋转后方向键仍按屏幕方向走（上就是屏幕上）；路上有墙会停住</li>
       <li>选中棋子后点「以选中棋子为圆心画圆」＝ 20 米射击圈；再点圆形工具在圈内点一下就是 5 米范围</li>
       <li>「测距」拖拽时起点、终点落在棋子上会自动对齐棋子圆心，量棋子到棋子的距离很方便</li>
-      <li>选中一个范围，面板会列出范围内的棋子（橙色虚线圈高亮；默认按棋子中心，可在范围区或设置里改「边缘接触也算」）；刚画完也会提示命中了谁</li>
+      <li>选中一个范围，面板会列出范围内的棋子（橙色虚线圈高亮；默认按棋子中心，可在范围区或设置里改「边缘接触也算」）；范围绑定了棋子时，不会把该棋子自己算进命中；刚画完也会提示命中了谁</li>
       <li><kbd>Ctrl</kbd>+<kbd>Z</kbd> 撤销 · <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Z</kbd> 重做（增删棋子、移动、画范围、先攻调整都能回退）</li>
-      <li>选中棋子后可以直接改「坐标」两个数字，或用「步长」+ 九宫格方向键一格一格挪；拖动完坐标框也会同步</li>
+      <li>选中棋子后可以直接改「坐标」两个数字，或用「步长」+ 九宫格方向键一格一格挪；拖动完坐标框也会同步。数值移动同样会被墙挡住</li>
       <li>先攻：「＋ 加入」把选中棋子加进列表（没选中就加空白角色），改先攻值自动排序；「下一回合」高亮下一位，轮完自动进下一回合；点行选中棋子，双击连镜头一起过去</li>
       <li>摆件（木桶/木箱/圆桌/椅子/火把/树/石像/地毯）纯装饰；墙用工具栏「墙 (W)」拖拽画，会挡住棋子移动和范围视线</li>
       <li>右键/长按摆件或墙体可选中、复制、删除；选中后按住拖动可移动</li>
@@ -738,6 +739,15 @@ function setMapBounds(img, force) {
   }
 }
 function boundsRect() { return S.settings.boundsOn ? S.settings.bounds : null; }
+function blockedMove(t, nx, ny) {
+  if (!S.walls || !S.walls.length) return false;
+  return wallAt(nx, ny, 1, true) || losBlocked(t.x, t.y, nx, ny);
+}
+function moveTokenTo(t, nx, ny) {
+  const cb = clampToBounds(nx, ny, tokenWorldR(t));
+  if (blockedMove(t, cb.x, cb.y)) { toast('前面是墙，走不过去'); return false; }
+  t.x = cb.x; t.y = cb.y; return true;
+}
 function clampToBounds(x, y, rad) {
   const b = boundsRect();
   if (!b) return { x: x, y: y };
@@ -2591,8 +2601,7 @@ function buildPlayerEditor(box, t) {
     if (isFinite(xv)) nx = xv * S.grid.ppm;
     if (isFinite(yv)) ny = yv * S.grid.ppm;
     const ox = t.x, oy = t.y;
-    const cb = clampToBounds(nx, ny, tokenWorldR(t));
-    t.x = cb.x; t.y = cb.y;
+    if (!moveTokenTo(t, nx, ny)) { syncTokenPos(t); return; }
     logMove(t, ox, oy);
     netSend('move', { id: t.id, x: t.x, y: t.y });
     draw(); autosave(); syncTokenPos(t); pushHistory();
@@ -2609,11 +2618,10 @@ function buildPlayerEditor(box, t) {
     const th = viewRot(), cs = Math.cos(th), sn = Math.sin(th);
     const ox = t.x, oy = t.y;
     const wx = dx * cs + dy * sn, wy = -dx * sn + dy * cs;
-    t.x += wx * step * k * S.grid.ppm;
-    t.y += wy * step * k * S.grid.ppm;
-    if (S.grid.snap) { const sp = snapPoint(t.x, t.y); t.x = sp.x; t.y = sp.y; }
-    const cb = clampToBounds(t.x, t.y, tokenWorldR(t));
-    t.x = cb.x; t.y = cb.y;
+    let nx = t.x + wx * step * k * S.grid.ppm;
+    let ny = t.y + wy * step * k * S.grid.ppm;
+    if (S.grid.snap) { const sp = snapPoint(nx, ny); nx = sp.x; ny = sp.y; }
+    if (!moveTokenTo(t, nx, ny)) { syncTokenPos(t); return; }
     logMove(t, ox, oy);
     netSend('move', { id: t.id, x: t.x, y: t.y });
     draw(); autosave(); syncTokenPos(t); pushHistory();
@@ -2696,8 +2704,7 @@ function buildEditor() {
     if (isFinite(xv)) nx = xv * S.grid.ppm;
     if (isFinite(yv)) ny = yv * S.grid.ppm;
     const ox = t.x, oy = t.y;
-    const cb = clampToBounds(nx, ny, tokenWorldR(t));
-    t.x = cb.x; t.y = cb.y;
+    if (!moveTokenTo(t, nx, ny)) { syncTokenPos(t); return; }
     logMove(t, ox, oy);
     if (S.net.role === 'player') netSend('move', { id: t.id, x: t.x, y: t.y });
     draw(); autosave(); syncTokenPos(t); pushHistory();
@@ -2713,14 +2720,13 @@ function buildEditor() {
     const k = (dx && dy) ? Math.SQRT1_2 : 1;
     const th = viewRot(), cs = Math.cos(th), sn = Math.sin(th);
     const wx = dx * cs + dy * sn, wy = -dx * sn + dy * cs;   // 屏幕方向 → 世界方向
-    t.x += wx * step * k * S.grid.ppm;
-    t.y += wy * step * k * S.grid.ppm;
+    let nx = t.x + wx * step * k * S.grid.ppm;
+    let ny = t.y + wy * step * k * S.grid.ppm;
     if (S.grid.snap) {
-      const sp = snapPoint(t.x, t.y);
-      t.x = sp.x; t.y = sp.y;
+      const sp = snapPoint(nx, ny);
+      nx = sp.x; ny = sp.y;
     }
-    const cb = clampToBounds(t.x, t.y, tokenWorldR(t));
-    t.x = cb.x; t.y = cb.y;
+    if (!moveTokenTo(t, nx, ny)) { syncTokenPos(t); return; }
     if (S.net.role === 'player') netSend('move', { id: t.id, x: t.x, y: t.y });
     draw(); autosave(); syncTokenPos(t); pushHistory();
   }));
@@ -4630,13 +4636,17 @@ function renderPlayersPanel() {
   }).sort((a, b) => (a.on === b.on ? 0 : a.on ? -1 : 1));
   const hint0 = $('#playersHint'); if (hint0) hint0.textContent = '在线 0 人';
   if (!rows.length) { list.innerHTML = '<div class="hint-row">还没有玩家加入。把房间码发给他们。</div>'; return; }
-  list.innerHTML = rows.map(r =>
-    '<div class="fp-row' + (r.on ? '' : ' off') + '" data-pid="' + r.pid + '">' +
+  list.innerHTML = rows.map(r => {
+    const opts = '<option value="">未绑定</option>' + S.tokens.map(t => '<option value="' + t.id + '"' + (r.tk && r.tk.id === t.id ? ' selected' : '') + '>' + esc(t.name || '棋子') + '</option>').join('');
+    return '<div class="fp-row' + (r.on ? '' : ' off') + '" data-pid="' + r.pid + '">' +
       '<span class="dot"></span><div class="who"><b>' + esc(r.p.name || '玩家') +
       (r.p.audience ? ' <span class="badge">观众</span>' : '') + '</b><i>' +
-      (r.on ? '在线' : '离线') + ' · ' + (r.tk ? ('棋子：' + esc(r.tk.name || '未命名')) : '未绑定棋子') +
-      '</i></div><button class="kick" data-kick="' + r.pid + '">踢出</button></div>').join('');
+      (r.on ? '在线' : '离线') + (r.tk ? (' · 棋子：' + esc(r.tk.name || '未命名')) : ' · 未绑定棋子') +
+      '</i></div>' + (r.p.audience ? '' : '<select class="bind-sel" data-bind="' + r.pid + '" title="绑定棋子">' + opts + '</select>') +
+      '<button class="kick" data-kick="' + r.pid + '">踢出</button></div>';
+  }).join('');
   list.querySelectorAll('[data-kick]').forEach(b => b.addEventListener('click', () => kickPlayer(b.dataset.kick)));
+  list.querySelectorAll('[data-bind]').forEach(sel => sel.addEventListener('change', () => bindPlayer(sel.dataset.bind, sel.value)));
   const hint = $('#playersHint'); if (hint) hint.textContent = '在线 ' + rows.filter(r => r.on).length + ' 人 · 共 ' + rows.length + ' 人';
 }
 function kickPlayer(pid) {
@@ -4906,7 +4916,7 @@ function openSettings() { renderSettings(); const m = $('#setModal'); if (m) m.h
 function closeSettings() { const m = $('#setModal'); if (m) m.hidden = true; }
 function bindSettings() {
   const on = (id, fn) => { const el = $('#' + id); if (el) el.addEventListener('change', fn); };
-  on('setSnap', e => { S.grid.snap = e.target.checked; const g = $('#snap'); if (g) g.checked = S.grid.snap; autosave(); });
+  on('setSnap', e => { S.grid.snap = e.target.checked; syncGridInputs(); autosave(); });
   on('setGridShow', e => { S.grid.show = e.target.checked; const g = $('#gridShow'); if (g) g.checked = S.grid.show; draw(); autosave(); });
   on('setFogOn', e => { S.fog.on = e.target.checked; const g = $('#fogOn'); if (g) g.checked = S.fog.on; renderFog(); draw(); autosave(); netPublish(); });
   on('setInitLock', e => { S.settings.initLock = e.target.checked; const g = $('#initLock'); if (g) g.checked = S.settings.initLock; autosave(); netPublish(); });
@@ -5301,11 +5311,13 @@ function bindUI() {
     const a = (S.selected && S.selected.type === 'area') ? getArea(S.selected.id) : null;
     if (!a) return;
     const id = areaFollow.value;
-    if (!id) { delete a.follow; delete a.followOff; }
-    else {
+    if (!id) {
+      if (a.casterId === a.follow) delete a.casterId;
+      delete a.follow; delete a.followOff;
+    } else {
       const t = getToken(id);
       if (!t) return;
-      a.follow = id;
+      a.follow = id; a.casterId = id;
       if (a.type === 'line') a.followOff = { dx: a.x1 - t.x, dy: a.y1 - t.y };
       else { a.x = t.x; a.y = t.y; delete a.followOff; }
     }
@@ -5461,7 +5473,11 @@ function bindKeys() {
         let nx = t.x + dx * cs + dy * sn;
         let ny = t.y - dx * sn + dy * cs;
         if (S.grid.snap) { const sp = snapPoint(nx, ny); nx = sp.x; ny = sp.y; }
-        t.x = nx; t.y = ny;
+        if (!canActWithToken(t)) { toast('还没轮到你行动'); return; }
+        const ox = t.x, oy = t.y;
+        if (!moveTokenTo(t, nx, ny)) { syncTokenPos(t); return; }
+        logMove(t, ox, oy);
+        if (S.net.role === 'player') netSend('move', { id: t.id, x: t.x, y: t.y });
         syncTokenPos(t); draw(); autosave(); pushHistory();
       }
       return;
